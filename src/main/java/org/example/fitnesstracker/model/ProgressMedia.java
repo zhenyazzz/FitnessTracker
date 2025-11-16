@@ -21,14 +21,12 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.EqualsAndHashCode;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "media", indexes = {
     @Index(name = "idx_media_created_at", columnList = "created_at")

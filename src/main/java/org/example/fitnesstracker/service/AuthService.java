@@ -1,0 +1,138 @@
+package org.example.fitnesstracker.service;
+
+import org.example.fitnesstracker.dto.request.auth.LoginRequest;
+import org.example.fitnesstracker.dto.request.auth.LogoutRequest;
+import org.example.fitnesstracker.dto.request.auth.RefreshTokenRequest;
+import org.example.fitnesstracker.dto.request.auth.RegisterRequest;
+import org.example.fitnesstracker.dto.response.AuthResponse;
+import org.example.fitnesstracker.exception.EmailAlreadyExistsException;
+import org.example.fitnesstracker.exception.RefreshTokenExpiredException;
+import org.example.fitnesstracker.exception.RefreshTokenNotFoundException;
+import org.example.fitnesstracker.model.User;
+import org.example.fitnesstracker.model.RefreshToken;
+import org.example.fitnesstracker.repository.RefreshTokenRepository;
+import org.example.fitnesstracker.repository.UserRepository;
+import org.example.fitnesstracker.security.JwtService;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import jakarta.transaction.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Transactional
+    public AuthResponse register(RegisterRequest request) {
+
+        log.info("Registering user with email: {}", request.email());
+
+        if (userRepository.existsByEmail(request.email())) {
+            log.error("User with email {} already exists", request.email());
+            throw new EmailAlreadyExistsException("User with email " + request.email() + " already exists");
+        }
+
+        User user = User.builder()
+            .email(request.email())
+            .password(passwordEncoder.encode(request.password()))
+            .username(request.username())
+            .build();
+        userRepository.save(user);
+        log.info("User registered successfully with email: {}", request.email());
+
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        RefreshToken refresh = RefreshToken.builder()
+                .user(user)
+                .token(refreshToken)
+                .expiryDate(jwtService.extractExpirationLocal(refreshToken))
+                .build();
+    
+        refreshTokenRepository.save(refresh);
+        log.info("Tokens generated and refresh token saved for user: {}", user.getEmail());
+    
+        return new AuthResponse(
+                accessToken,
+                refreshToken
+        );
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest request) {
+        log.info("Attempting login for user with email: {}", request.email());
+        
+        User user = userRepository.findByEmail(request.email())
+            .orElseThrow(() -> new UsernameNotFoundException("User with email " + request.email() + " not found"));
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            log.error("Login failed: Invalid password for user with email: {}", request.email());
+            throw new BadCredentialsException("Invalid password");
+        }
+        
+        String refreshToken = jwtService.generateRefreshToken(user);
+        String accessToken  = jwtService.generateAccessToken(user);
+    
+        refreshTokenRepository.deleteByUser(user);
+    
+        RefreshToken refreshed = RefreshToken.builder()
+                .user(user)
+                .token(refreshToken)
+                .expiryDate(jwtService.extractExpirationLocal(refreshToken))
+                .build();
+    
+        refreshTokenRepository.save(refreshed);
+        log.info("User logged in successfully with email: {}", user.getEmail());
+    
+        return new AuthResponse(
+            accessToken,
+            refreshToken
+        );        
+    }
+
+    @Transactional
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        log.info("Attempting to refresh token");
+        
+        RefreshToken stored = refreshTokenRepository.findByToken(request.refreshToken())
+            .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token not found"));
+
+        if (jwtService.isTokenExpired(request.refreshToken())) {
+            log.error("Refresh token expired for user: {}", stored.getUser().getEmail());
+            refreshTokenRepository.delete(stored);
+            throw new RefreshTokenExpiredException("Refresh token expired");
+        }
+
+        User user = stored.getUser();
+
+        String newRefresh = jwtService.generateRefreshToken(user);
+        String newAccess  = jwtService.generateAccessToken(user);
+
+        stored.setToken(newRefresh);
+        stored.setExpiryDate(jwtService.extractExpirationLocal(newRefresh));
+
+        refreshTokenRepository.save(stored);
+        log.info("Tokens refreshed successfully for user: {}", user.getEmail());
+
+        return new AuthResponse(newAccess, newRefresh);
+    }
+
+    @Transactional
+    public void logout(LogoutRequest request) {
+        log.info("Logging out user with refresh token: {}", request.refreshToken());
+        RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
+            .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token " + request.refreshToken() + " not found"));
+        
+        refreshTokenRepository.delete(refreshToken);
+        log.info("User logged out successfully with refresh token: {}", request.refreshToken());
+    }
+
+}

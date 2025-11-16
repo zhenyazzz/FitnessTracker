@@ -17,7 +17,7 @@ INSERT INTO exercises (name, muscle_group, description) VALUES
 -- Legs exercises
 INSERT INTO exercises (name, muscle_group, description) VALUES
 ('Squat', 'LEGS', 'King of leg exercises'),
-('Leg Press', 'LEGS', 'Machine-based quad exercise');
+('Leg Press', 'LEGS', 'Machine-based quad exercise'),
 ('Romanian Deadlift', 'LEGS', 'Targets hamstrings and glutes'),
 ('Leg Curl', 'LEGS', 'Isolation for hamstrings');
 
@@ -38,14 +38,14 @@ INSERT INTO exercises (name, muscle_group, description) VALUES
 -- Core exercises
 INSERT INTO exercises (name, muscle_group, description) VALUES
 ('Plank', 'CORE', 'Isometric core exercise'),
-('Crunches', 'CORE', 'Basic ab exercise');
+('Crunches', 'CORE', 'Basic ab exercise'),
 ('Hanging Leg Raise', 'CORE', 'Advanced ab exercise'),
 ('Cable Crunch', 'CORE', 'Weighted ab exercise');
 
 -- Full body exercises
 INSERT INTO exercises (name, muscle_group, description) VALUES
 ('Burpees', 'FULL_BODY', 'Full body cardio exercise'),
-('Running', 'FULL_BODY', 'Cardio exercise')
+('Running', 'FULL_BODY', 'Cardio exercise'),
 ('Mountain Climbers', 'FULL_BODY', 'Core and cardio combination'),
 ('Box Jumps', 'FULL_BODY', 'Explosive full body movement');
 

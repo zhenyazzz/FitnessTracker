@@ -10,7 +10,7 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -21,3 +21,9 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:Zml0bmVzc1RyYWNrZXJTZWN1cml0eUtleTIwMjUwMDEwMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000} # 1 hour in milliseconds
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days in milliseconds

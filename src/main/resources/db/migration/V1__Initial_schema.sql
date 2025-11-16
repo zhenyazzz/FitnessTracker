@@ -1,4 +1,3 @@
--- Create users table
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -8,7 +7,6 @@ CREATE TABLE users (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create exercises table (reference data)
 CREATE TABLE exercises (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
@@ -16,10 +14,8 @@ CREATE TABLE exercises (
     description VARCHAR(500)
 );
 
--- Create index on muscle_group for filtering
 CREATE INDEX idx_exercise_muscle_group ON exercises(muscle_group);
 
--- Create workouts table
 CREATE TABLE workouts (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -32,11 +28,9 @@ CREATE TABLE workouts (
     CONSTRAINT fk_workout_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create indexes for workouts filtering and sorting
 CREATE INDEX idx_workout_date ON workouts(date);
 CREATE INDEX idx_workout_type ON workouts(type);
 
--- Create body_measurements table
 CREATE TABLE body_measurements (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -53,10 +47,8 @@ CREATE TABLE body_measurements (
     CONSTRAINT fk_body_measurement_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create index for body measurements date filtering
 CREATE INDEX idx_body_measurement_date ON body_measurements(date);
 
--- Create media table (progress photos)
 CREATE TABLE media (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -68,10 +60,19 @@ CREATE TABLE media (
     CONSTRAINT fk_media_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create index for media sorting by creation date
 CREATE INDEX idx_media_created_at ON media(created_at);
 
--- Create workout_exercises table (many-to-many with additional data)
+CREATE TABLE refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    token VARCHAR(500) NOT NULL UNIQUE,
+    expiry_date TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_refresh_token_token ON refresh_tokens(token);
+
 CREATE TABLE workout_exercises (
     id BIGSERIAL PRIMARY KEY,
     workout_id BIGINT NOT NULL,
@@ -84,12 +85,3 @@ CREATE TABLE workout_exercises (
     CONSTRAINT fk_workout_exercise_workout FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE,
     CONSTRAINT fk_workout_exercise_exercise FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE RESTRICT
 );
-
--- Comments for documentation
-COMMENT ON TABLE users IS 'Application users';
-COMMENT ON TABLE exercises IS 'Reference table with predefined exercises';
-COMMENT ON TABLE workouts IS 'User workout sessions';
-COMMENT ON TABLE body_measurements IS 'User body measurements for progress tracking';
-COMMENT ON TABLE media IS 'Progress photos uploaded by users';
-COMMENT ON TABLE workout_exercises IS 'Exercises performed in each workout with sets, reps, and weights';
-
