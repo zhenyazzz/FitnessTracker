@@ -1,7 +1,7 @@
 package org.example.fitnesstracker.repository;
 
 import org.example.fitnesstracker.model.Role;
-import org.example.fitnesstracker.model.RoleName;
+import org.example.fitnesstracker.model.enums.RoleName;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
