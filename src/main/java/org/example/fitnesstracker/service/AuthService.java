@@ -8,10 +8,14 @@ import org.example.fitnesstracker.dto.response.AuthResponse;
 import org.example.fitnesstracker.exception.EmailAlreadyExistsException;
 import org.example.fitnesstracker.exception.RefreshTokenExpiredException;
 import org.example.fitnesstracker.exception.RefreshTokenNotFoundException;
+import org.example.fitnesstracker.exception.RoleNotFoundException;
 import org.example.fitnesstracker.model.User;
+import org.example.fitnesstracker.model.Role;
+import org.example.fitnesstracker.model.RoleName;
 import org.example.fitnesstracker.model.RefreshToken;
 import org.example.fitnesstracker.repository.RefreshTokenRepository;
 import org.example.fitnesstracker.repository.UserRepository;
+import org.example.fitnesstracker.repository.RoleRepository;
 import org.example.fitnesstracker.security.JwtService;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -27,6 +31,7 @@ import jakarta.transaction.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
@@ -41,13 +46,20 @@ public class AuthService {
             throw new EmailAlreadyExistsException("User with email " + request.email() + " already exists");
         }
 
+        
+        Role userRole = roleRepository.findByName(RoleName.USER)
+            .orElseThrow(() -> new RoleNotFoundException("Role USER not found in database. Please run database migrations."));
+        
         User user = User.builder()
             .email(request.email())
             .password(passwordEncoder.encode(request.password()))
             .username(request.username())
             .build();
+        
+        user.getRoles().add(userRole);
+        
         userRepository.save(user);
-        log.info("User registered successfully with email: {}", request.email());
+        log.info("User registered successfully with email: {} and role: {}", request.email(), RoleName.USER);
 
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -103,12 +115,12 @@ public class AuthService {
         log.info("Attempting to refresh token");
         
         RefreshToken stored = refreshTokenRepository.findByToken(request.refreshToken())
-            .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token not found"));
+            .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token not found. Please login again."));
 
         if (jwtService.isTokenExpired(request.refreshToken())) {
             log.error("Refresh token expired for user: {}", stored.getUser().getEmail());
             refreshTokenRepository.delete(stored);
-            throw new RefreshTokenExpiredException("Refresh token expired");
+            throw new RefreshTokenExpiredException("Refresh token expired. Please login again.");
         }
 
         User user = stored.getUser();

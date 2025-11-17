@@ -22,8 +22,23 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
-# JWT Configuration
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+  show-actuator: false
+
 jwt:
   secret: ${JWT_SECRET:Zml0bmVzc1RyYWNrZXJTZWN1cml0eUtleTIwMjUwMDEwMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000} # 1 hour in milliseconds
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days in milliseconds
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000} # 1 hour 
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days 
