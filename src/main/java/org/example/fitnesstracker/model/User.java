@@ -70,7 +70,7 @@ public class User {
     private List<Workout> workouts;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ProgressMedia> progressMedia;
+    private List<Media> media;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<BodyMeasurement> bodyMeasurements;

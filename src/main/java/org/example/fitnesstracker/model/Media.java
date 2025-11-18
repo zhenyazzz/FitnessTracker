@@ -31,7 +31,7 @@ import lombok.Builder;
 @Table(name = "media", indexes = {
     @Index(name = "idx_media_created_at", columnList = "created_at")
 })
-public class ProgressMedia {
+public class Media {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
