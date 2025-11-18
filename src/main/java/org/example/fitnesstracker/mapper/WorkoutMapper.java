@@ -26,16 +26,19 @@ public interface WorkoutMapper {
     Workout toEntity(CreateWorkoutRequest request);
     
     
+
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "workout", ignore = true)
     @Mapping(target = "exercise", ignore = true)
     WorkoutExercise toEntity(CreateWorkoutExerciseRequest request);
+
+    List<WorkoutExercise> toEntityList(List<CreateWorkoutExerciseRequest> requests);
+    
     
     
     @Mapping(target = "exercises", source = "workoutExercises")
     WorkoutResponse toResponse(Workout workout);
-    
-    
+
     List<WorkoutResponse> toResponseList(List<Workout> workouts);
     
     
