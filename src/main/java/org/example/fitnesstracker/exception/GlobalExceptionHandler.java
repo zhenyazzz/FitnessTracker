@@ -41,7 +41,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
-    @ExceptionHandler({UsernameNotFoundException.class, RefreshTokenNotFoundException.class, RoleNotFoundException.class, WorkoutNotFoundException.class})
+    @ExceptionHandler({UsernameNotFoundException.class, RefreshTokenNotFoundException.class, RoleNotFoundException.class, WorkoutNotFoundException.class, ExerciseNotFoundException.class})
     public ResponseEntity<ErrorResponse> handleNotFoundException(Exception ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value());
