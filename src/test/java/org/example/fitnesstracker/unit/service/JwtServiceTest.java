@@ -1,8 +1,8 @@
 package org.example.fitnesstracker.unit.service;
 
 import org.example.fitnesstracker.model.Role;
-import org.example.fitnesstracker.model.RoleName;
 import org.example.fitnesstracker.model.User;
+import org.example.fitnesstracker.model.enums.RoleName;
 import org.example.fitnesstracker.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

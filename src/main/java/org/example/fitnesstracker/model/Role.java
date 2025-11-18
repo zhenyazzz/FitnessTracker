@@ -14,6 +14,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.example.fitnesstracker.model.enums.RoleName;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;

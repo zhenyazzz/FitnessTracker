@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Entity;
