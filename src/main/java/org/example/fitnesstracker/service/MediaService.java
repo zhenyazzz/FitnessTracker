@@ -5,18 +5,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import java.util.List;
-import java.util.stream.Collectors;
+
+import java.time.LocalDate;
 import org.example.fitnesstracker.repository.MediaRepository;
+import org.example.fitnesstracker.repository.UserRepository;
+import org.example.fitnesstracker.repository.specification.MediaSpecifications;
 import org.example.fitnesstracker.model.Media;
+import org.example.fitnesstracker.model.User;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.MediaNotFoundException;
+import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.mapper.MediaMapper;
-import org.example.fitnesstracker.security.UserDetailsImpl;
 import org.example.fitnesstracker.security.SecurityUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -25,12 +32,35 @@ public class MediaService {
     private final MediaRepository mediaRepository;
     private final MediaMapper mediaMapper;
     private final SecurityUtils securityUtils;
+    private final UserRepository userRepository;
 
-    public List<MediaResponse> getAllMedia() {
+    public Page<MediaResponse> getAllMedia(
+        String sortBy, String sortDirection,
+        LocalDate dateFrom, LocalDate dateTo,
+        int page, int size
+    ) {
 
-        return mediaRepository.findAll().stream()
-            .map(mediaMapper::toResponse)
-            .collect(Collectors.toList());
+        if (sortBy == null) {
+            sortBy = "createdAt";
+        }
+        if (sortDirection == null) {
+            sortDirection = "desc";
+        }
+
+        size = Math.min(Math.max(size, 1), 100);
+
+        Sort sort = sortDirection.equalsIgnoreCase("asc") 
+            ? Sort.by(Direction.ASC, sortBy) 
+            : Sort.by(Direction.DESC, sortBy);
+
+        Long currentUserId = securityUtils.getCurrentUserId();
+
+        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId)
+            .and(MediaSpecifications.hasDateFrom(dateFrom))
+            .and(MediaSpecifications.hasDateTo(dateTo));
+
+        Page<Media> mediaPage = mediaRepository.findAll(specification, PageRequest.of(page, size, sort));
+        return mediaPage.map(mediaMapper::toResponse);
     }
 
     public MediaResponse getMediaById(Long id) {
@@ -40,8 +70,15 @@ public class MediaService {
         return mediaMapper.toResponse(media);
     }
 
+    @Transactional
     public MediaResponse createMedia(MediaRequest request) {
-        return null;
+        Long currentUserId = securityUtils.getCurrentUserId();
+        User user = userRepository.findById(currentUserId)
+            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + currentUserId));
+        Media media = mediaMapper.toEntity(request, user);
+        
+        mediaRepository.save(media);
+        return mediaMapper.toResponse(media);
     }
 
     @Transactional
