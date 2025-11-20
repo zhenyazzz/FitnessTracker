@@ -3,7 +3,6 @@ package org.example.fitnesstracker.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
-import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,7 +25,7 @@ import org.example.fitnesstracker.exception.WorkoutNotFoundException;
 import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
 import org.example.fitnesstracker.mapper.WorkoutMapper;
-import org.example.fitnesstracker.security.UserDetailsImpl;
+import org.example.fitnesstracker.security.SecurityUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
@@ -47,6 +46,7 @@ public class WorkoutsService {
     private final UserRepository userRepository;
     private final ExerciseRepository exerciseRepository;
     private final WorkoutMapper workoutMapper;
+    private final SecurityUtils securityUtils;
 
 
     
@@ -59,7 +59,7 @@ public class WorkoutsService {
         int page, int size
     ) {
 
-        Long currentUserId = getCurrentUserId();
+        Long currentUserId = securityUtils.getCurrentUserId();
 
         if (sortBy == null) {
             sortBy = "date";
@@ -104,7 +104,7 @@ public class WorkoutsService {
 
     @Transactional
     public WorkoutResponse createWorkout(CreateWorkoutRequest request) {
-        Long currentUserId = getCurrentUserId();
+        Long currentUserId = securityUtils.getCurrentUserId();
         log.info("Creating workout '{}' for user {}", request.name(), currentUserId);
         
         User user = userRepository.findById(currentUserId)
@@ -144,7 +144,7 @@ public class WorkoutsService {
 
     @Transactional
     public WorkoutResponse updateWorkout(Long id, UpdateWorkoutRequest request) {
-        Long currentUserId = getCurrentUserId();
+        Long currentUserId = securityUtils.getCurrentUserId();
         log.info("Updating workout {} by user {}", id, currentUserId);
         
         Workout workout = workoutsRepository.findById(id)
@@ -196,7 +196,7 @@ public class WorkoutsService {
 
     @Transactional
     public void deleteWorkout(Long id) {
-        Long currentUserId = getCurrentUserId();
+        Long currentUserId = securityUtils.getCurrentUserId();
         log.info("Deleting workout {} by user {}", id, currentUserId);
         
         Workout workout = workoutsRepository.findById(id)
@@ -216,12 +216,5 @@ public class WorkoutsService {
         workoutsRepository.delete(workout);
         log.info("Successfully deleted workout {} for user {}", id, currentUserId);
     }
-
-    private Long getCurrentUserId() {
-        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext()
-            .getAuthentication().getPrincipal();
-        return userDetails.getId();
-    }
-
 
 }

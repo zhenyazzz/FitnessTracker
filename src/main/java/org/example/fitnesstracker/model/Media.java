@@ -31,7 +31,7 @@ import lombok.Builder;
 @Table(name = "media", indexes = {
     @Index(name = "idx_media_created_at", columnList = "created_at")
 })
-public class ProgressMedia {
+public class Media {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,11 +49,11 @@ public class ProgressMedia {
     @Column(length = 500)
     private String note;
 
-    private Long fileSize; // in bytes
+    private Long fileSize; 
 
     @Size(max = 100, message = "MIME type cannot exceed 100 characters")
     @Column(length = 100)
-    private String mimeType; // e.g., "image/jpeg", "image/png"
+    private String mimeType; 
 
     @CreationTimestamp
     private LocalDateTime createdAt;
