@@ -14,11 +14,11 @@ public class MediaSpecifications {
 
     public static Specification<Media> hasDateFrom(LocalDate dateFrom) {
         return (root, query, criteriaBuilder) -> 
-            dateFrom == null ? null : criteriaBuilder.greaterThanOrEqualTo(root.get("date"), dateFrom);
+            dateFrom == null ? null : criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), dateFrom.atStartOfDay());
     }
 
     public static Specification<Media> hasDateTo(LocalDate dateTo) {
         return (root, query, criteriaBuilder) -> 
-            dateTo == null ? null : criteriaBuilder.lessThanOrEqualTo(root.get("date"), dateTo);
+            dateTo == null ? null : criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), dateTo.atStartOfDay());
     }
 }

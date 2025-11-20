@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public record MediaResponse(
     Long id,
-    String path,
+    String presignedUrl,  
     String note,
     Long fileSize,
     String mimeType,

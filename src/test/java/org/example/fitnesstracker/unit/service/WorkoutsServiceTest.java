@@ -20,6 +20,7 @@ import org.example.fitnesstracker.repository.ExerciseRepository;
 import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.WorkoutsRepository;
 import org.example.fitnesstracker.security.UserDetailsImpl;
+import org.example.fitnesstracker.security.SecurityUtils;
 import org.example.fitnesstracker.service.WorkoutsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -73,6 +74,9 @@ class WorkoutsServiceTest {
     @Mock
     private Authentication authentication;
 
+    @Mock
+    private SecurityUtils securityUtils;
+
     private User testUser;
     private Exercise testExercise;
     private Workout testWorkout;
@@ -83,6 +87,8 @@ class WorkoutsServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Mock SecurityUtils to return test user ID
+        lenient().when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         
         testUser = User.builder()
             .id(TEST_USER_ID)

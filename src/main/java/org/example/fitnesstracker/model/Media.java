@@ -49,11 +49,11 @@ public class Media {
     @Column(length = 500)
     private String note;
 
-    private Long fileSize; // in bytes
+    private Long fileSize; 
 
     @Size(max = 100, message = "MIME type cannot exceed 100 characters")
     @Column(length = 100)
-    private String mimeType; // e.g., "image/jpeg", "image/png"
+    private String mimeType; 
 
     @CreationTimestamp
     private LocalDateTime createdAt;

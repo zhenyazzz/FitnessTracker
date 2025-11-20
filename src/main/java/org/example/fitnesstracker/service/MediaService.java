@@ -2,6 +2,7 @@ package org.example.fitnesstracker.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class MediaService {
     private final MediaMapper mediaMapper;
     private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
+    private final MinioService minioService;
 
     public Page<MediaResponse> getAllMedia(
         String sortBy, String sortDirection,
@@ -60,25 +62,39 @@ public class MediaService {
             .and(MediaSpecifications.hasDateTo(dateTo));
 
         Page<Media> mediaPage = mediaRepository.findAll(specification, PageRequest.of(page, size, sort));
-        return mediaPage.map(mediaMapper::toResponse);
+        return mediaPage.map(media -> {
+            String url = minioService.generateFileUrl(media.getPath());
+            return mediaMapper.toResponse(media, url);
+        });
     }
 
     public MediaResponse getMediaById(Long id) {
         Long currentUserId = securityUtils.getCurrentUserId();
         Media media = mediaRepository.findByIdAndUserId(id, currentUserId)
             .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id + " and user id: " + currentUserId));
-        return mediaMapper.toResponse(media);
+        String url = minioService.generateFileUrl(media.getPath());
+        return mediaMapper.toResponse(media, url);
     }
 
     @Transactional
-    public MediaResponse createMedia(MediaRequest request) {
+    public MediaResponse createMedia(MediaRequest request, MultipartFile file) {
         Long currentUserId = securityUtils.getCurrentUserId();
+
         User user = userRepository.findById(currentUserId)
             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + currentUserId));
-        Media media = mediaMapper.toEntity(request, user);
-        
-        mediaRepository.save(media);
-        return mediaMapper.toResponse(media);
+
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty");
+        }
+
+        String path = minioService.uploadFile(file);
+
+        Media media = mediaMapper.toEntity(request, user, path, file.getSize(), file.getContentType());
+
+        Media savedMedia = mediaRepository.save(media);
+
+        String url = minioService.generateFileUrl(savedMedia.getPath());
+        return mediaMapper.toResponse(savedMedia, url);
     }
 
     @Transactional
@@ -89,8 +105,10 @@ public class MediaService {
         if (!media.getUser().getId().equals(currentUserId)) {
             throw new AccessDeniedException("You can only delete your own media");
         }
+
+        minioService.deleteFile(media.getPath());
+
         mediaRepository.delete(media);
     }
-
 
 }
