@@ -41,9 +41,6 @@ public class MinioService {
         ensureBucketExists();
     }
 
-    /**
-     * Проверяет существование bucket и создает его, если необходимо
-     */
     private void ensureBucketExists() {
         try {
             boolean exists = minioClient.bucketExists(BucketExistsArgs.builder()

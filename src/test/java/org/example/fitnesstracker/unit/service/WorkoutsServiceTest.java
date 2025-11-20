@@ -87,7 +87,6 @@ class WorkoutsServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Mock SecurityUtils to return test user ID
         lenient().when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         
         testUser = User.builder()
@@ -128,7 +127,6 @@ class WorkoutsServiceTest {
         SecurityContextHolder.setContext(securityContext);
     }
 
-    // Test for getting all workouts with pagination
     @Test
     @DisplayName("Should get all workouts with pagination")
     void should_GetAllWorkouts_WithPagination() {
