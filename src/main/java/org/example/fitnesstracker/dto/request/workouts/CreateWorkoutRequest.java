@@ -27,7 +27,7 @@ public record CreateWorkoutRequest(
     @Min(value = 1, message = "Duration must be at least 1 minute")
     Integer duration, // minutes
     
-    @Min(value = 0, message = "Calories cannot be negative")
+    @Min(value = 1, message = "Calories must be greater than 0")
     Integer calories,
     
     @Valid

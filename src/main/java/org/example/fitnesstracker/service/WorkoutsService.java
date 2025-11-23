@@ -93,7 +93,8 @@ public class WorkoutsService {
 
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);
-        Workout workout = workoutsRepository.findById(id)
+        Long currentUserId = securityUtils.getCurrentUserId();
+        Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
             .orElseThrow(() -> {
                 log.warn("Workout with id {} not found", id);
                 return new WorkoutNotFoundException("Workout with id " + id + " not found");

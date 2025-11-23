@@ -73,9 +73,6 @@ public class User {
     private List<Media> media;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<BodyMeasurement> bodyMeasurements;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<RefreshToken> refreshTokens;
 
     @ManyToMany(fetch = FetchType.LAZY)

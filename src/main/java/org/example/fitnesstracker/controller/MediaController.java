@@ -4,7 +4,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,7 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
@@ -100,10 +100,15 @@ public class MediaController {
         @RequestParam(required = false) String sortDirection,
         @RequestParam(required = false) LocalDate dateFrom,
         @RequestParam(required = false) LocalDate dateTo,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
 
     ) {
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
+            log.warn("Invalid date range: dateFrom ({}) is after dateTo ({})", dateFrom, dateTo);
+            throw new IllegalArgumentException("dateFrom must be before or equal to dateTo");
+        }
+        
         log.debug("Request to get all media with filters: sortBy={}, sortDirection={}, dateFrom={}, dateTo={}, page={}, size={}", 
             sortBy, sortDirection, dateFrom, dateTo, page, size);
         Page<MediaResponse> result = mediaService.getAllMedia(sortBy, sortDirection, dateFrom, dateTo, page, size);
@@ -257,10 +262,20 @@ public class MediaController {
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MediaResponse> createMedia(
-        @Valid @ModelAttribute MediaRequest request,
+        @RequestPart(value = "note", required = false) String note,
         @RequestPart("file") @NotNull(message = "File is required") MultipartFile file) {
+        
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File is required and cannot be empty");
+        }
+        
+        if (note != null && note.length() > 500) {
+            throw new IllegalArgumentException("Note cannot exceed 500 characters");
+        }
+        
+        MediaRequest request = new MediaRequest(note);
         log.debug("Request to create media: filename={}, size={}, contentType={}, note={}", 
-            file.getOriginalFilename(), file.getSize(), file.getContentType(), request.note());
+            file.getOriginalFilename(), file.getSize(), file.getContentType(), note);
         MediaResponse result = mediaService.createMedia(request, file);
         log.info("Successfully created media with id: {}, filename: {}", 
             result.id(), file.getOriginalFilename());

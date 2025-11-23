@@ -21,7 +21,7 @@ public record UpdateWorkoutExerciseRequest(
     Double distance,
     
     @Min(value = 0, message = "Time cannot be negative")
-    Integer time // seconds
+    Integer time 
 ) {
 
 }

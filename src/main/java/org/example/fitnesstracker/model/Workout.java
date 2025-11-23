@@ -75,7 +75,7 @@ public class Workout {
     @Column(nullable = false)
     private Integer duration; // minutes
 
-    @Min(value = 0, message = "Calories cannot be negative")
+    @Min(value = 1, message = "Calories must be greater than 0")
     private Integer calories;
 
     @CreationTimestamp

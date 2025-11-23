@@ -11,7 +11,10 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,6 +40,7 @@ import org.example.fitnesstracker.model.enums.WorkoutType;
 @RestController
 @RequestMapping("/workouts")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Workouts", description = "API для работы с тренировками")
 public class WorkoutsController {
 
@@ -105,10 +109,20 @@ public class WorkoutsController {
         @RequestParam(required = false) Integer caloriesTo,
         @RequestParam(required = false) String sortBy,
         @RequestParam(required = false) String sortDirection,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
     ) {
-        return ResponseEntity.ok(workoutsService.getAllWorkouts(type, dateFrom, dateTo, durationFrom, durationTo, caloriesFrom, caloriesTo, sortBy, sortDirection, page, size));
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
+            log.warn("Invalid date range: dateFrom ({}) is after dateTo ({})", dateFrom, dateTo);
+            throw new IllegalArgumentException("dateFrom must be before or equal to dateTo");
+        }
+        
+        log.debug("Getting workouts with filters: type={}, dateFrom={}, dateTo={}, page={}, size={}", 
+            type, dateFrom, dateTo, page, size);
+        Page<WorkoutResponse> result = workoutsService.getAllWorkouts(type, dateFrom, dateTo, durationFrom, durationTo, caloriesFrom, caloriesTo, sortBy, sortDirection, page, size);
+        log.info("Successfully retrieved {} workouts (page {}, total: {})", 
+            result.getContent().size(), page, result.getTotalElements());
+        return ResponseEntity.ok(result);
     }
 
     @Operation(
@@ -169,7 +183,10 @@ public class WorkoutsController {
     })
     @GetMapping("/{id}")
     public ResponseEntity<WorkoutResponse> getWorkoutById(@PathVariable Long id) {
-        return ResponseEntity.ok(workoutsService.getWorkoutById(id));
+        log.debug("Getting workout by id: {}", id);
+        WorkoutResponse result = workoutsService.getWorkoutById(id);
+        log.info("Successfully retrieved workout with id: {}", id);
+        return ResponseEntity.ok(result);
     }
 
     @Operation(
@@ -250,7 +267,10 @@ public class WorkoutsController {
     })
     @PostMapping
     public ResponseEntity<WorkoutResponse> createWorkout(@Valid @RequestBody CreateWorkoutRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(workoutsService.createWorkout(request));
+        log.debug("Creating workout: name={}, type={}, date={}", request.name(), request.type(), request.date());
+        WorkoutResponse result = workoutsService.createWorkout(request);
+        log.info("Successfully created workout with id: {}", result.id());
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @Operation(
@@ -347,7 +367,10 @@ public class WorkoutsController {
     })
     @PutMapping("/{id}")
     public ResponseEntity<WorkoutResponse> updateWorkout(@PathVariable Long id, @Valid @RequestBody UpdateWorkoutRequest request) {
-        return ResponseEntity.ok(workoutsService.updateWorkout(id, request));
+        log.debug("Updating workout with id: {}", id);
+        WorkoutResponse result = workoutsService.updateWorkout(id, request);
+        log.info("Successfully updated workout with id: {}", id);
+        return ResponseEntity.ok(result);
     }
 
     @Operation(
@@ -413,7 +436,9 @@ public class WorkoutsController {
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteWorkout(@PathVariable Long id) {
+        log.debug("Deleting workout with id: {}", id);
         workoutsService.deleteWorkout(id);
+        log.info("Successfully deleted workout with id: {}", id);
         return ResponseEntity.noContent().build();
     }
 
