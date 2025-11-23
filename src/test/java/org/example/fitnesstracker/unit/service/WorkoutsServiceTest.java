@@ -164,7 +164,6 @@ class WorkoutsServiceTest {
         verify(workoutsRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
-    // Test for getting workout by id 
     @Test
     @DisplayName("Should get workout by id successfully")
     void should_GetWorkoutById_Successfully() {
@@ -182,7 +181,7 @@ class WorkoutsServiceTest {
             Collections.emptyList()
         );
 
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(testWorkout));
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
         when(workoutMapper.toResponse(testWorkout)).thenReturn(expectedResponse);
 
         // Act
@@ -192,7 +191,7 @@ class WorkoutsServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(TEST_WORKOUT_ID);
         
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper).toResponse(testWorkout);
     }
 
@@ -202,19 +201,18 @@ class WorkoutsServiceTest {
         // Arrange
         mockSecurityContext();
         
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.empty());
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> workoutsService.getWorkoutById(TEST_WORKOUT_ID))
             .isInstanceOf(WorkoutNotFoundException.class)
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper, never()).toResponse(any());
     }
 
 
-    // Test for creating a new workout
     @Test
     @DisplayName("Should create a new workout successfully")
     void should_CreateNewWorkout_Successfully() {
@@ -352,7 +350,6 @@ class WorkoutsServiceTest {
         verify(workoutsRepository, never()).save(any());
     }
 
-    // Test for updating workout
     @Test
     @DisplayName("Should update workout successfully without exercises")
     void should_UpdateWorkout_Successfully_WithoutExercises() {
@@ -553,8 +550,7 @@ class WorkoutsServiceTest {
         verify(workoutMapper, never()).updateEntityFromRequest(any(), any());
         verify(workoutsRepository, never()).save(any());
     }
-
-    // Test for deleting workout
+        
     @Test
     @DisplayName("Should delete workout successfully")
     void should_DeleteWorkout_Successfully() {
