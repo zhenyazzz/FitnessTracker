@@ -31,24 +31,6 @@ CREATE TABLE workouts (
 CREATE INDEX idx_workout_date ON workouts(date);
 CREATE INDEX idx_workout_type ON workouts(type);
 
-CREATE TABLE body_measurements (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    date DATE NOT NULL,
-    height DOUBLE PRECISION,
-    weight DOUBLE PRECISION,
-    chest DOUBLE PRECISION,
-    shoulders DOUBLE PRECISION,
-    waist DOUBLE PRECISION,
-    hip DOUBLE PRECISION,
-    bicep DOUBLE PRECISION,
-    thigh DOUBLE PRECISION,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_body_measurement_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_body_measurement_date ON body_measurements(date);
-
 CREATE TABLE media (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,

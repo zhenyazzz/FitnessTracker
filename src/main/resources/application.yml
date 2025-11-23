@@ -1,27 +1,13 @@
 spring:
   application:
     name: FitnessTracker
-  
-  datasource:
-    url: jdbc:postgresql://localhost:5432/fitness_tracker
-    username: user
-    password: password
-    driver-class-name: org.postgresql.Driver
-  
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-  
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
-
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
@@ -37,14 +23,3 @@ springdoc:
     tags-sorter: alpha
     try-it-out-enabled: true
   show-actuator: false
-
-jwt:
-  secret: ${JWT_SECRET:Zml0bmVzc1RyYWNrZXJTZWN1cml0eUtleTIwMjUwMDEwMTIzNDU2Nzg5MGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVo=}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000} # 1 hour 
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days
-
-minio:
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket: fitness-tracker
