@@ -13,9 +13,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.DecimalMin;
-
+    
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,19 +36,14 @@ public class WorkoutExercise {
     @JoinColumn(name = "exercise_id")
     private Exercise exercise;
 
-    @Min(value = 1, message = "Sets must be at least 1")
     private Integer sets;
 
-    @Min(value = 1, message = "Reps must be at least 1")
     private Integer reps;
 
-    @DecimalMin(value = "0.0", message = "Weight cannot be negative")
     private Double weight;
 
-    @DecimalMin(value = "0.0", message = "Distance cannot be negative")
     private Double distance;
 
-    @Min(value = 0, message = "Time cannot be negative")
     private Integer time; // seconds
 }
 

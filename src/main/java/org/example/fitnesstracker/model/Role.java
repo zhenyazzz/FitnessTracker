@@ -9,7 +9,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -37,9 +36,8 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "Role name is required")
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, unique = true)
     private RoleName name;
 
     @ManyToMany(mappedBy = "roles")

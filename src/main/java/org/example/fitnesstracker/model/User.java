@@ -15,9 +15,6 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.CascadeType;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 import java.util.List;
 import java.util.Set;
@@ -47,17 +44,12 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
     @Column(nullable = false, unique = true)
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 4, message = "Password must be at least 4 characters")
     @Column(nullable = false)
     private String password;
 
-    @Size(max = 50, message = "Username cannot exceed 50 characters")
     private String username;
 
     @CreationTimestamp

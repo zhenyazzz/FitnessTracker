@@ -1,6 +1,6 @@
 package org.example.fitnesstracker.dto.response.workouts;
 
-import org.example.fitnesstracker.model.MuscleGroup;
+import org.example.fitnesstracker.model.enums.MuscleGroup;
 
 public record WorkoutExerciseResponse(
     Long id,

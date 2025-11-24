@@ -1,4 +1,4 @@
-package org.example.fitnesstracker.model;
+package org.example.fitnesstracker.model.enums;
 
 public enum MuscleGroup {
     CHEST,
