@@ -26,11 +26,10 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final WorkoutsRepository workoutsRepository;
-    private final SecurityUtils securityUtils;
 
     @Transactional(readOnly = true)
     public AnalyticsResponse getAnalytics(LocalDate dateFrom, LocalDate dateTo) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Getting analytics for user {} from {} to {}", currentUserId, dateFrom, dateTo);
 
         

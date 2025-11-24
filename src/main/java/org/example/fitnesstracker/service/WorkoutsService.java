@@ -46,7 +46,6 @@ public class WorkoutsService {
     private final UserRepository userRepository;
     private final ExerciseRepository exerciseRepository;
     private final WorkoutMapper workoutMapper;
-    private final SecurityUtils securityUtils;
 
 
     
@@ -59,7 +58,7 @@ public class WorkoutsService {
         int page, int size
     ) {
 
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
 
         if (sortBy == null) {
             sortBy = "date";
@@ -93,7 +92,7 @@ public class WorkoutsService {
 
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
             .orElseThrow(() -> {
                 log.warn("Workout with id {} not found", id);
@@ -105,7 +104,7 @@ public class WorkoutsService {
 
     @Transactional
     public WorkoutResponse createWorkout(CreateWorkoutRequest request) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Creating workout '{}' for user {}", request.name(), currentUserId);
         
         User user = userRepository.findById(currentUserId)
@@ -145,7 +144,7 @@ public class WorkoutsService {
 
     @Transactional
     public WorkoutResponse updateWorkout(Long id, UpdateWorkoutRequest request) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Updating workout {} by user {}", id, currentUserId);
         
         Workout workout = workoutsRepository.findById(id)
@@ -197,7 +196,7 @@ public class WorkoutsService {
 
     @Transactional
     public void deleteWorkout(Long id) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Deleting workout {} by user {}", id, currentUserId);
         
         Workout workout = workoutsRepository.findById(id)

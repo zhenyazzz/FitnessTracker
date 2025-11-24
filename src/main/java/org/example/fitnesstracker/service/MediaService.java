@@ -32,7 +32,6 @@ import org.springframework.data.domain.PageRequest;
 public class MediaService {
     private final MediaRepository mediaRepository;
     private final MediaMapper mediaMapper;
-    private final SecurityUtils securityUtils;
     private final UserRepository userRepository;
     private final MinioService minioService;
 
@@ -55,7 +54,7 @@ public class MediaService {
             ? Sort.by(Direction.ASC, sortBy) 
             : Sort.by(Direction.DESC, sortBy);
 
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
 
         Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId)
             .and(MediaSpecifications.hasDateFrom(dateFrom))
@@ -69,7 +68,7 @@ public class MediaService {
     }
 
     public MediaResponse getMediaById(Long id) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         Media media = mediaRepository.findByIdAndUserId(id, currentUserId)
             .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id + " and user id: " + currentUserId));
         String url = minioService.generateFileUrl(media.getPath());
@@ -78,7 +77,7 @@ public class MediaService {
 
     @Transactional
     public MediaResponse createMedia(MediaRequest request, MultipartFile file) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
 
         User user = userRepository.findById(currentUserId)
             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + currentUserId));
@@ -99,7 +98,7 @@ public class MediaService {
 
     @Transactional
     public void deleteMedia(Long id) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         Media media = mediaRepository.findById(id)
             .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id));
         if (!media.getUser().getId().equals(currentUserId)) {
