@@ -19,24 +19,22 @@ import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.repository.ExerciseRepository;
 import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.WorkoutsRepository;
-import org.example.fitnesstracker.security.UserDetailsImpl;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.example.fitnesstracker.service.WorkoutsService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -68,39 +66,24 @@ class WorkoutsServiceTest {
     @Mock
     private WorkoutMapper workoutMapper;
 
-    @Mock
-    private SecurityContext securityContext;
-
-    @Mock
-    private Authentication authentication;
-
-    @Mock
-    private SecurityUtils securityUtils;
-
+    private MockedStatic<SecurityUtils> mockedSecurityUtils;
     private User testUser;
     private Exercise testExercise;
     private Workout testWorkout;
-    private UserDetailsImpl userDetails;
     private static final Long TEST_USER_ID = 1L;
     private static final Long TEST_WORKOUT_ID = 1L;
     private static final Long TEST_EXERCISE_ID = 1L;
 
     @BeforeEach
     void setUp() {
-        lenient().when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
+        mockedSecurityUtils = mockStatic(SecurityUtils.class);
+        mockedSecurityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(TEST_USER_ID);
         
         testUser = User.builder()
             .id(TEST_USER_ID)
             .email("test@example.com")
             .username("testuser")
             .build();
-
-        userDetails = new UserDetailsImpl(
-            TEST_USER_ID,
-            "test@example.com",
-            "password",
-            Collections.emptyList()
-        );
 
         testExercise = Exercise.builder()
             .id(TEST_EXERCISE_ID)
@@ -121,18 +104,17 @@ class WorkoutsServiceTest {
             .build();
     }
 
-    private void mockSecurityContext() {
-        lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
-        lenient().when(authentication.getPrincipal()).thenReturn(userDetails);
-        SecurityContextHolder.setContext(securityContext);
+    @AfterEach
+    void tearDown() {
+        if (mockedSecurityUtils != null) {
+            mockedSecurityUtils.close();
+        }
     }
 
     @Test
     @DisplayName("Should get all workouts with pagination")
     void should_GetAllWorkouts_WithPagination() {
         // Arrange
-        mockSecurityContext();
-        
         Pageable pageable = PageRequest.of(0, 10);
         Page<Workout> workoutPage = new PageImpl<>(List.of(testWorkout), pageable, 1);
         
@@ -161,6 +143,7 @@ class WorkoutsServiceTest {
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getTotalElements()).isEqualTo(1);
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
@@ -168,8 +151,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should get workout by id successfully")
     void should_GetWorkoutById_Successfully() {
         // Arrange
-        mockSecurityContext();
-        
         WorkoutResponse expectedResponse = new WorkoutResponse(
             TEST_WORKOUT_ID,
             "Утренняя тренировка",
@@ -191,6 +172,7 @@ class WorkoutsServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(TEST_WORKOUT_ID);
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper).toResponse(testWorkout);
     }
@@ -199,8 +181,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when workout not found")
     void should_ThrowException_WhenWorkoutNotFound() {
         // Arrange
-        mockSecurityContext();
-        
         when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -208,6 +188,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(WorkoutNotFoundException.class)
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper, never()).toResponse(any());
     }
@@ -217,8 +198,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should create a new workout successfully")
     void should_CreateNewWorkout_Successfully() {
         // Arrange
-        mockSecurityContext();
-        
         CreateWorkoutRequest request = new CreateWorkoutRequest(
             "Утренняя тренировка",
             WorkoutType.STRENGTH,
@@ -280,6 +259,7 @@ class WorkoutsServiceTest {
         assertThat(result.id()).isEqualTo(TEST_WORKOUT_ID);
         assertThat(result.name()).isEqualTo("Утренняя тренировка");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(exerciseRepository).findById(TEST_EXERCISE_ID);
         verify(workoutMapper).toEntity(request);
@@ -291,8 +271,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when user not found during workout creation")
     void should_ThrowException_WhenUserNotFound() {
         // Arrange
-        mockSecurityContext();
-        
         CreateWorkoutRequest request = new CreateWorkoutRequest(
             "Утренняя тренировка",
             WorkoutType.STRENGTH,
@@ -309,6 +287,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(UserNotFoundException.class)
             .hasMessageContaining("User not found with id: " + TEST_USER_ID);
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(workoutsRepository, never()).save(any());
     }
@@ -317,8 +296,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when exercise not found during workout creation")
     void should_ThrowException_WhenExerciseNotFound() {
         // Arrange
-        mockSecurityContext();
-        
         CreateWorkoutRequest request = new CreateWorkoutRequest(
             "Утренняя тренировка",
             WorkoutType.STRENGTH,
@@ -345,6 +322,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(ExerciseNotFoundException.class)
             .hasMessageContaining("Exercise with id " + TEST_EXERCISE_ID + " not found");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(exerciseRepository).findById(TEST_EXERCISE_ID);
         verify(workoutsRepository, never()).save(any());
@@ -354,8 +332,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should update workout successfully without exercises")
     void should_UpdateWorkout_Successfully_WithoutExercises() {
         // Arrange
-        mockSecurityContext();
-        
         UpdateWorkoutRequest request = new UpdateWorkoutRequest(
             "Обновленная тренировка",
             WorkoutType.CARDIO,
@@ -402,6 +378,7 @@ class WorkoutsServiceTest {
         assertThat(result.type()).isEqualTo(WorkoutType.CARDIO);
         assertThat(result.duration()).isEqualTo(75);
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutMapper).updateEntityFromRequest(request, testWorkout);
         verify(workoutsRepository).save(testWorkout);
@@ -412,8 +389,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should update workout successfully with exercises")
     void should_UpdateWorkout_Successfully_WithExercises() {
         // Arrange
-        mockSecurityContext();
-        
         Long workoutExerciseId = 1L;
         WorkoutExercise existingExercise = WorkoutExercise.builder()
             .id(workoutExerciseId)
@@ -473,6 +448,7 @@ class WorkoutsServiceTest {
         assertThat(result.id()).isEqualTo(TEST_WORKOUT_ID);
         assertThat(result.name()).isEqualTo("Обновленная тренировка");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutMapper).updateEntityFromRequest(request, testWorkout);
         verify(workoutMapper).updateExerciseFromRequest(any(UpdateWorkoutExerciseRequest.class), any(WorkoutExercise.class));
@@ -484,8 +460,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when workout not found during update")
     void should_ThrowException_WhenWorkoutNotFound_DuringUpdate() {
         // Arrange
-        mockSecurityContext();
-        
         UpdateWorkoutRequest request = new UpdateWorkoutRequest(
             "Обновленная тренировка",
             WorkoutType.STRENGTH,
@@ -502,6 +476,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(WorkoutNotFoundException.class)
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutMapper, never()).updateEntityFromRequest(any(), any());
         verify(workoutsRepository, never()).save(any());
@@ -511,8 +486,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw AccessDeniedException when user tries to update another user's workout")
     void should_ThrowAccessDeniedException_WhenUpdatingAnotherUsersWorkout() {
         // Arrange
-        mockSecurityContext();
-        
         User anotherUser = User.builder()
             .id(2L)
             .email("another@example.com")
@@ -546,6 +519,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(AccessDeniedException.class)
             .hasMessageContaining("You can only update your own workouts");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutMapper, never()).updateEntityFromRequest(any(), any());
         verify(workoutsRepository, never()).save(any());
@@ -555,8 +529,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should delete workout successfully")
     void should_DeleteWorkout_Successfully() {
         // Arrange
-        mockSecurityContext();
-        
         when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(testWorkout));
         doNothing().when(workoutsRepository).delete(testWorkout);
 
@@ -564,6 +536,7 @@ class WorkoutsServiceTest {
         workoutsService.deleteWorkout(TEST_WORKOUT_ID);
 
         // Assert
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutsRepository).delete(testWorkout);
     }
@@ -572,8 +545,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when workout not found during deletion")
     void should_ThrowException_WhenWorkoutNotFound_DuringDeletion() {
         // Arrange
-        mockSecurityContext();
-        
         when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -581,6 +552,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(WorkoutNotFoundException.class)
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutsRepository, never()).delete(any(Workout.class));
     }
@@ -589,8 +561,6 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw AccessDeniedException when user tries to delete another user's workout")
     void should_ThrowAccessDeniedException_WhenDeletingAnotherUsersWorkout() {
         // Arrange
-        mockSecurityContext();
-        
         User anotherUser = User.builder()
             .id(2L)
             .email("another@example.com")
@@ -615,6 +585,7 @@ class WorkoutsServiceTest {
             .isInstanceOf(AccessDeniedException.class)
             .hasMessageContaining("You can only delete your own workouts");
         
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(workoutsRepository).findById(TEST_WORKOUT_ID);
         verify(workoutsRepository, never()).delete(any(Workout.class));
     }

@@ -11,12 +11,14 @@ import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.repository.WorkoutsRepository;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.example.fitnesstracker.service.AnalyticsService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -25,11 +27,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AnalyticsService Test")
@@ -38,14 +39,12 @@ public class AnalyticsServiceTest {
     @Mock
     private WorkoutsRepository workoutsRepository;
 
-    @Mock
-    private SecurityUtils securityUtils;
-
     @InjectMocks
     private AnalyticsService analyticsService;
 
     private Long userId;
     private User testUser;
+    private MockedStatic<SecurityUtils> mockedSecurityUtils;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +55,15 @@ public class AnalyticsServiceTest {
                 .username("testuser")
                 .build();
         
-        when(securityUtils.getCurrentUserId()).thenReturn(userId);
+        mockedSecurityUtils = mockStatic(SecurityUtils.class);
+        mockedSecurityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (mockedSecurityUtils != null) {
+            mockedSecurityUtils.close();
+        }
     }
 
     @Test
