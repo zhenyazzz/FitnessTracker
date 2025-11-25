@@ -33,6 +33,7 @@ public class MediaService {
     private final UserRepository userRepository;
     private final MinioService minioService;
 
+    @Transactional(readOnly = true)
     public Page<MediaResponse> getAllMedia(
         MediaFilterDto filter,
         Pageable pageable
@@ -58,6 +59,7 @@ public class MediaService {
         return specification;
     }
 
+    @Transactional(readOnly = true)
     public MediaResponse getMediaById(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Media media = mediaRepository.findByIdAndUserId(id, currentUserId)

@@ -45,6 +45,7 @@ public class WorkoutsService {
 
 
     
+    @Transactional(readOnly = true)
     public Page<WorkoutResponse> getAllWorkouts(
         WorkoutFilterDto filter,
         Pageable pageable
@@ -88,6 +89,7 @@ public class WorkoutsService {
         return specification;
     }
 
+    @Transactional(readOnly = true)
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);
         Long currentUserId = SecurityUtils.getCurrentUserId();
