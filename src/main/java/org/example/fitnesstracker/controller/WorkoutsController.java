@@ -1,17 +1,18 @@
 package org.example.fitnesstracker.controller;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fitnesstracker.controller.docs.WorkoutsControllerApi;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
-import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.service.WorkoutsService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,10 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/workouts")
@@ -37,28 +35,13 @@ public class WorkoutsController implements WorkoutsControllerApi {
     @GetMapping
     @Override
     public ResponseEntity<Page<WorkoutResponse>> getAllWorkouts(
-        @RequestParam(required = false) WorkoutType type,
-        @RequestParam(required = false) LocalDate dateFrom,
-        @RequestParam(required = false) LocalDate dateTo,
-        @RequestParam(required = false) Integer durationFrom,
-        @RequestParam(required = false) Integer durationTo,
-        @RequestParam(required = false) Integer caloriesFrom,
-        @RequestParam(required = false) Integer caloriesTo,
-        @RequestParam(required = false) String sortBy,
-        @RequestParam(required = false) String sortDirection,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+        @Valid @RequestBody WorkoutFilterDto filter,
+        @PageableDefault(size = 10, sort = "date", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
-            log.warn("Invalid date range: dateFrom ({}) is after dateTo ({})", dateFrom, dateTo);
-            throw new IllegalArgumentException("dateFrom must be before or equal to dateTo");
-        }
-        
-        log.debug("Getting workouts with filters: type={}, dateFrom={}, dateTo={}, page={}, size={}", 
-            type, dateFrom, dateTo, page, size);
-        Page<WorkoutResponse> result = workoutsService.getAllWorkouts(type, dateFrom, dateTo, durationFrom, durationTo, caloriesFrom, caloriesTo, sortBy, sortDirection, page, size);
+        log.debug("Getting workouts with filters: {}", filter);
+        Page<WorkoutResponse> result = workoutsService.getAllWorkouts(filter, pageable);
         log.info("Successfully retrieved {} workouts (page {}, total: {})", 
-            result.getContent().size(), page, result.getTotalElements());
+            result.getContent().size(), pageable.getPageNumber(), result.getTotalElements());
         return ResponseEntity.ok(result);
     }
 

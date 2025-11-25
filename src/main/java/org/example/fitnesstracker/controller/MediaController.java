@@ -1,15 +1,18 @@
 package org.example.fitnesstracker.controller;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fitnesstracker.controller.docs.MediaControllerApi;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.service.MediaService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +21,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/media")
@@ -35,23 +36,13 @@ public class MediaController implements MediaControllerApi {
     @GetMapping
     @Override
     public ResponseEntity<Page<MediaResponse>> getAllMedia(
-        @RequestParam(required = false) String sortBy,
-        @RequestParam(required = false) String sortDirection,
-        @RequestParam(required = false) LocalDate dateFrom,
-        @RequestParam(required = false) LocalDate dateTo,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+        @Valid @RequestBody MediaFilterDto filter,
+        @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
-            log.warn("Invalid date range: dateFrom ({}) is after dateTo ({})", dateFrom, dateTo);
-            throw new IllegalArgumentException("dateFrom must be before or equal to dateTo");
-        }
-        
-        log.debug("Request to get all media with filters: sortBy={}, sortDirection={}, dateFrom={}, dateTo={}, page={}, size={}", 
-            sortBy, sortDirection, dateFrom, dateTo, page, size);
-        Page<MediaResponse> result = mediaService.getAllMedia(sortBy, sortDirection, dateFrom, dateTo, page, size);
+        log.debug("Request to get all media with filters: {}", filter);
+        Page<MediaResponse> result = mediaService.getAllMedia(filter, pageable);
         log.info("Successfully retrieved {} media items (page {}, total: {})", 
-            result.getContent().size(), page, result.getTotalElements());
+            result.getContent().size(), pageable.getPageNumber(), result.getTotalElements());
         return ResponseEntity.ok(result);
     }
 

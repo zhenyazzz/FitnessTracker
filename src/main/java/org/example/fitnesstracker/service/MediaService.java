@@ -7,12 +7,12 @@ import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDate;
 import org.example.fitnesstracker.repository.MediaRepository;
 import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.specification.MediaSpecifications;
 import org.example.fitnesstracker.model.Media;
 import org.example.fitnesstracker.model.User;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.exception.AccessDeniedException;
@@ -21,10 +21,8 @@ import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.mapper.MediaMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -35,38 +33,33 @@ public class MediaService {
     private final UserRepository userRepository;
     private final MinioService minioService;
 
+    @Transactional(readOnly = true)
     public Page<MediaResponse> getAllMedia(
-        String sortBy, String sortDirection,
-        LocalDate dateFrom, LocalDate dateTo,
-        int page, int size
+        MediaFilterDto filter,
+        Pageable pageable
     ) {
+        Specification<Media> specification = buildSpecification(filter);
 
-        if (sortBy == null) {
-            sortBy = "createdAt";
-        }
-        if (sortDirection == null) {
-            sortDirection = "desc";
-        }
-
-        size = Math.min(Math.max(size, 1), 100);
-
-        Sort sort = sortDirection.equalsIgnoreCase("asc") 
-            ? Sort.by(Direction.ASC, sortBy) 
-            : Sort.by(Direction.DESC, sortBy);
-
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId)
-            .and(MediaSpecifications.hasDateFrom(dateFrom))
-            .and(MediaSpecifications.hasDateTo(dateTo));
-
-        Page<Media> mediaPage = mediaRepository.findAll(specification, PageRequest.of(page, size, sort));
+        Page<Media> mediaPage = mediaRepository.findAll(specification, pageable);
         return mediaPage.map(media -> {
             String url = minioService.generateFileUrl(media.getPath());
             return mediaMapper.toResponse(media, url);
         });
     }
 
+    private Specification<Media> buildSpecification(MediaFilterDto filter) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId);
+        
+        if (filter != null && filter.dateFilter() != null) {
+            specification = specification
+                .and(MediaSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+                .and(MediaSpecifications.hasDateTo(filter.dateFilter().dateTo()));
+        }
+        return specification;
+    }
+
+    @Transactional(readOnly = true)
     public MediaResponse getMediaById(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Media media = mediaRepository.findByIdAndUserId(id, currentUserId)

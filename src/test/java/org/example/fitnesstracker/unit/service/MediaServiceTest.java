@@ -4,6 +4,8 @@ import org.example.fitnesstracker.service.MediaService;
 import org.example.fitnesstracker.repository.MediaRepository;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
+import org.example.fitnesstracker.dto.request.DateFilterDto;
 import org.example.fitnesstracker.mapper.MediaMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.example.fitnesstracker.repository.UserRepository;
@@ -127,8 +129,9 @@ class MediaServiceTest {
 
         // Act
         Page<MediaResponse> result = mediaService.getAllMedia(
-            null, null, null, null, 0, 10
+            new MediaFilterDto(new DateFilterDto(null, null)), pageable
         );
+        
 
         // Assert
         assertThat(result).isNotNull();
