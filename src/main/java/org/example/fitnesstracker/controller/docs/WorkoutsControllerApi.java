@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
+import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
 import org.example.fitnesstracker.dto.response.ErrorResponse;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
@@ -252,19 +253,19 @@ public interface WorkoutsControllerApi {
 
     @Operation(
         summary = "Обновление тренировки по ID",
-        description = "Обновляет тренировку по ID. Все поля опциональны. Упражнения, не указанные в запросе, будут удалены.",
+        description = "Обновляет основные поля тренировки по ID (название, тип, дата, длительность, калории). Все поля опциональны. Упражнения не обновляются через этот метод.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameter(name = "id", description = "ID тренировки", required = true, example = "1")
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
-        description = "Данные для обновления тренировки",
+        description = "Данные для обновления тренировки (все поля опциональны)",
         required = true,
         content = @Content(
             mediaType = "application/json",
             schema = @Schema(implementation = UpdateWorkoutRequest.class),
             examples = @ExampleObject(
                 name = "Пример запроса",
-                value = "{\n  \"name\": \"Обновленная тренировка\",\n  \"type\": \"STRENGTH\",\n  \"date\": \"2024-12-15\",\n  \"duration\": 75,\n  \"calories\": 450,\n  \"exercises\": [\n    {\n      \"workoutExerciseId\": 1,\n      \"sets\": 5,\n      \"reps\": 10,\n      \"weight\": 85.0,\n      \"distance\": null,\n      \"time\": null\n    },\n    {\n      \"workoutExerciseId\": 2,\n      \"sets\": 4,\n      \"reps\": 12,\n      \"weight\": 65.0,\n      \"distance\": null,\n      \"time\": null\n    }\n  ]\n}"
+                value = "{\n  \"name\": \"Обновленная тренировка\",\n  \"type\": \"STRENGTH\",\n  \"date\": \"2024-12-15\",\n  \"duration\": 75,\n  \"calories\": 450\n}"
             )
         )
     )
@@ -407,4 +408,7 @@ public interface WorkoutsControllerApi {
     })
     ResponseEntity<Void> deleteWorkout(@PathVariable Long id);
 
+    ResponseEntity<WorkoutResponse> addExerciseToWorkout(@PathVariable Long id, @Valid @RequestBody CreateWorkoutExerciseRequest request);
+
+    ResponseEntity<Void> removeExerciseFromWorkout(@PathVariable Long id, @PathVariable Long exerciseId);
 }

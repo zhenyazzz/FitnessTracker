@@ -4,12 +4,12 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.hibernate.annotations.CreationTimestamp;
@@ -34,7 +34,6 @@ import jakarta.persistence.Index;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "workouts", indexes = {
@@ -70,6 +69,6 @@ public class Workout {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<WorkoutExercise> workoutExercises;
+    private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 }
 

@@ -88,11 +88,7 @@ public class WorkoutsService {
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found", id);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         log.info("Successfully retrieved workout {} for user {}", id, workout.getUser().getId());
         return workoutMapper.toResponse(workout);
     }
@@ -127,11 +123,7 @@ public class WorkoutsService {
         if (exerciseRequests != null && !exerciseRequests.isEmpty()) {
             log.debug("Adding {} exercises to workout", exerciseRequests.size());
             for (CreateWorkoutExerciseRequest exerciseRequest : exerciseRequests) {
-                Exercise exercise = exerciseRepository.findById(exerciseRequest.exerciseId())
-                    .orElseThrow(() -> {
-                        log.error("Exercise with id {} not found while creating workout", exerciseRequest.exerciseId());
-                        return new ExerciseNotFoundException("Exercise with id " + exerciseRequest.exerciseId() + " not found");
-                    });
+                Exercise exercise = findExerciseById(exerciseRequest.exerciseId());
                 
                 WorkoutExercise workoutExercise = workoutMapper.toEntity(exerciseRequest);
                 workoutExercise.setWorkout(workout);
@@ -148,11 +140,7 @@ public class WorkoutsService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Updating workout {} by user {}", id, currentUserId);
         
-        Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found for user {}", id, currentUserId);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         
         log.debug("Updating workout fields: name={}, type={}, date={}, duration={}, calories={}", 
             request.name(), request.type(), request.date(), request.duration(), request.calories());
@@ -171,14 +159,60 @@ public class WorkoutsService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Deleting workout {} by user {}", id, currentUserId);
         
-        Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found for user {}", id, currentUserId);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         
         workoutsRepository.delete(workout);
         log.info("Successfully deleted workout {} for user {}", id, currentUserId);
     }
 
+    @Transactional
+    public WorkoutResponse addExerciseToWorkout(Long workoutId, CreateWorkoutExerciseRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.info("Adding exercise {} to workout {} by user {}", request.exerciseId(), workoutId, currentUserId);
+        
+        Workout workout = findWorkoutByIdAndUserId(workoutId, currentUserId);
+        Exercise exercise = findExerciseById(request.exerciseId());
+
+        WorkoutExercise workoutExercise = workoutMapper.toEntity(request);
+        workoutExercise.setWorkout(workout);
+        workoutExercise.setExercise(exercise);
+        
+        workout.getWorkoutExercises().add(workoutExercise);
+        Workout savedWorkout = workoutsRepository.save(workout);
+        
+        log.info("Successfully added exercise {} to workout {} (id: {}) for user {}", 
+            exercise.getName(), savedWorkout.getName(), savedWorkout.getId(), currentUserId);
+        return workoutMapper.toResponse(savedWorkout);
+    }
+
+    @Transactional
+    public void removeExerciseFromWorkout(Long workoutId, Long workoutExerciseId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.info("Removing workout exercise {} from workout {} by user {}", workoutExerciseId, workoutId, currentUserId);
+        
+        Workout workout = findWorkoutByIdAndUserId(workoutId, currentUserId);
+        
+        workout.getWorkoutExercises().removeIf(we -> we.getId().equals(workoutExerciseId));
+
+        workoutsRepository.save(workout);
+        
+        log.info("Successfully removed workout exercise {} from workout {} for user {}", 
+            workoutExerciseId, workoutId, currentUserId);
+    }
+
+    private Workout findWorkoutByIdAndUserId(Long workoutId, Long userId) {
+        return workoutsRepository.findByIdAndUserId(workoutId, userId)
+            .orElseThrow(() -> {
+                log.warn("Workout with id {} not found for user {}", workoutId, userId);
+                return new WorkoutNotFoundException("Workout with id " + workoutId + " not found");
+            });
+    }
+
+    private Exercise findExerciseById(Long exerciseId) {
+        return exerciseRepository.findById(exerciseId)
+            .orElseThrow(() -> {
+                log.error("Exercise with id {} not found", exerciseId);
+                return new ExerciseNotFoundException("Exercise with id " + exerciseId + " not found");
+            });
+    }
 }

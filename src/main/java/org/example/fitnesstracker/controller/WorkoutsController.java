@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.fitnesstracker.controller.docs.WorkoutsControllerApi;
+import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
@@ -81,4 +82,21 @@ public class WorkoutsController implements WorkoutsControllerApi {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/exercises")
+    @Override
+    public ResponseEntity<WorkoutResponse> addExerciseToWorkout(@PathVariable Long id, @Valid @RequestBody CreateWorkoutExerciseRequest request) {
+        log.debug("Adding exercise to workout with id: {}", id);
+        WorkoutResponse result = workoutsService.addExerciseToWorkout(id, request);
+        log.info("Successfully added exercise to workout with id: {}", id);
+        return ResponseEntity.ok(result);
+    }
+    
+    @DeleteMapping("/{id}/exercises/{exerciseId}")
+    @Override
+    public ResponseEntity<Void> removeExerciseFromWorkout(@PathVariable Long id, @PathVariable Long exerciseId) {
+        log.debug("Removing exercise with id: {} from workout with id: {}", exerciseId, id);
+        workoutsService.removeExerciseFromWorkout(id, exerciseId);
+        log.info("Successfully removed exercise with id: {} from workout with id: {}", exerciseId, id);
+        return ResponseEntity.noContent().build();
+    }
 }
