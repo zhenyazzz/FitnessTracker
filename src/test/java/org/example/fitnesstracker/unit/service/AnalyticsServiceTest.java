@@ -1,5 +1,6 @@
 package org.example.fitnesstracker.unit.service;
 
+import org.example.fitnesstracker.dto.request.analytics.AnalyticsRequest;
 import org.example.fitnesstracker.dto.response.analytics.AnalyticsResponse;
 import org.example.fitnesstracker.dto.response.analytics.MaxAchievements;
 import org.example.fitnesstracker.model.Exercise;
@@ -70,20 +71,22 @@ public class AnalyticsServiceTest {
     @DisplayName("Should return empty analytics when no workouts")
     void shouldReturnEmptyAnalyticsWhenNoWorkouts() {
         // Arrange
+        AnalyticsRequest request = new AnalyticsRequest(null);
         @SuppressWarnings("unchecked")
         Specification<Workout> spec = any(Specification.class);
         when(workoutsRepository.findAll(spec)).thenReturn(Collections.emptyList());
 
         // Act
-        AnalyticsResponse response = analyticsService.getAnalytics(null, null);
+        AnalyticsResponse response = analyticsService.getAnalytics(request);
 
         // Assert
         assertNotNull(response);
         assertEquals(0L, response.totalWorkouts());
-        assertEquals(0L, response.workoutsInPeriod());
         assertEquals(0.0, response.totalWeightLifted());
         assertEquals(0, response.totalCaloriesBurned());
         assertEquals(0, response.totalDuration());
+        assertNull(response.periodStart());
+        assertNull(response.periodEnd());
         assertTrue(response.workoutsByType().isEmpty());
     }
 
@@ -91,6 +94,7 @@ public class AnalyticsServiceTest {
     @DisplayName("Should correctly calculate analytics for a single workout")
     void shouldCalculateAnalyticsForSingleWorkout() {
         // Arrange
+        AnalyticsRequest request = new AnalyticsRequest(null);
         Workout workout = createWorkout(1L, "Утренняя пробежка", WorkoutType.RUNNING, 
                 LocalDate.now(), 30, 200);
         
@@ -99,15 +103,16 @@ public class AnalyticsServiceTest {
         when(workoutsRepository.findAll(spec)).thenReturn(List.of(workout));
 
         // Act
-        AnalyticsResponse response = analyticsService.getAnalytics(null, null);
+        AnalyticsResponse response = analyticsService.getAnalytics(request);
 
         // Assert
         assertNotNull(response);
         assertEquals(1L, response.totalWorkouts());
-        assertEquals(1L, response.workoutsInPeriod());
         assertEquals(0.0, response.totalWeightLifted()); 
         assertEquals(200, response.totalCaloriesBurned());
         assertEquals(30, response.totalDuration());
+        assertNull(response.periodStart());
+        assertNull(response.periodEnd());
         assertEquals(1, response.workoutsByType().get(WorkoutType.RUNNING));
     }
 
@@ -115,6 +120,7 @@ public class AnalyticsServiceTest {
     @DisplayName("Should correctly calculate total weight lifted")
     void shouldCalculateTotalWeightLifted() {
         // Arrange
+        AnalyticsRequest request = new AnalyticsRequest(null);
         Exercise benchPress = createExercise(1L, "Жим лежа", MuscleGroup.CHEST);
         Exercise squat = createExercise(2L, "Приседания", MuscleGroup.LEGS);
 
@@ -130,7 +136,7 @@ public class AnalyticsServiceTest {
         when(workoutsRepository.findAll(spec)).thenReturn(List.of(workout));
 
         // Act
-        AnalyticsResponse response = analyticsService.getAnalytics(null, null);
+        AnalyticsResponse response = analyticsService.getAnalytics(request);
 
         // Assert
         assertEquals(7200.0, response.totalWeightLifted(), 0.01);
@@ -140,6 +146,7 @@ public class AnalyticsServiceTest {
     @DisplayName("Should correctly calculate max achievements")
     void shouldCalculateMaxAchievements() {
         // Arrange
+        AnalyticsRequest request = new AnalyticsRequest(null);
         Exercise benchPress = createExercise(1L, "Жим лежа", MuscleGroup.CHEST);
         Exercise deadlift = createExercise(2L, "Становая тяга", MuscleGroup.BACK);
         Exercise running = createExercise(3L, "Бег", MuscleGroup.FULL_BODY);
@@ -163,23 +170,16 @@ public class AnalyticsServiceTest {
                 .thenReturn(List.of(workout1, workout2, workout3));
 
         // Act
-        AnalyticsResponse response = analyticsService.getAnalytics(null, null);
+        AnalyticsResponse response = analyticsService.getAnalytics(request);
 
         // Assert
         MaxAchievements maxAchievements = response.maxAchievements();
         assertNotNull(maxAchievements);
         
-        // Arrange
         assertEquals(80, maxAchievements.maxWeightByExercise().get("Жим лежа"));
         assertEquals(150, maxAchievements.maxWeightByExercise().get("Становая тяга"));
-        
-      
         assertEquals(5000, maxAchievements.maxDistanceByExercise().get("Бег"));
-        
-
         assertEquals(1800, maxAchievements.maxTimeByExercise().get("Бег"));
-        
-      
         assertEquals(600, maxAchievements.maxCaloriesBurnedInWorkout());
         assertEquals(70, maxAchievements.maxDurationInWorkout());
     }
@@ -188,6 +188,7 @@ public class AnalyticsServiceTest {
     @DisplayName("Should correctly group workouts by type")
     void shouldGroupWorkoutsByType() {
         // Arrange
+        AnalyticsRequest request = new AnalyticsRequest(null);
         Workout workout1 = createWorkout(1L, "Силовая 1", WorkoutType.STRENGTH, 
                 LocalDate.now(), 60, 400);
         Workout workout2 = createWorkout(2L, "Силовая 2", WorkoutType.STRENGTH, 
@@ -203,7 +204,7 @@ public class AnalyticsServiceTest {
                 .thenReturn(List.of(workout1, workout2, workout3, workout4));
 
         // Act
-        AnalyticsResponse response = analyticsService.getAnalytics(null, null);
+        AnalyticsResponse response = analyticsService.getAnalytics(request);
 
         // Assert
         Map<WorkoutType, Integer> workoutsByType = response.workoutsByType();
