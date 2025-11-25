@@ -1,11 +1,9 @@
 package org.example.fitnesstracker.dto.request.workouts;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.List;
 
 import org.example.fitnesstracker.model.enums.WorkoutType;
 
@@ -22,9 +20,7 @@ public record UpdateWorkoutRequest(
     Integer duration, 
     
     @Min(value = 1, message = "Calories must be greater than 0")
-    Integer calories,
+    Integer calories
     
-    @Valid
-    List<UpdateWorkoutExerciseRequest> exercises
 ) {
 }
