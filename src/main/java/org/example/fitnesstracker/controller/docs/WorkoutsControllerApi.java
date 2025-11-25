@@ -11,20 +11,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
 import org.example.fitnesstracker.dto.response.ErrorResponse;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
-import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 
-import java.time.LocalDate;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
+import org.springframework.data.domain.Pageable;
 
 @Tag(name = "Workouts", description = "API для работы с тренировками")
 public interface WorkoutsControllerApi {
@@ -35,17 +32,8 @@ public interface WorkoutsControllerApi {
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
-        @Parameter(name = "type", description = "Тип тренировки (CARDIO, STRENGTH, YOGA, CROSSFIT, RUNNING, OTHER)", example = "STRENGTH"),
-        @Parameter(name = "dateFrom", description = "Начальная дата фильтрации (формат: YYYY-MM-DD)", example = "2024-12-01"),
-        @Parameter(name = "dateTo", description = "Конечная дата фильтрации (формат: YYYY-MM-DD)", example = "2024-12-31"),
-        @Parameter(name = "durationFrom", description = "Минимальная длительность тренировки в минутах", example = "30"),
-        @Parameter(name = "durationTo", description = "Максимальная длительность тренировки в минутах", example = "90"),
-        @Parameter(name = "caloriesFrom", description = "Минимальное количество калорий", example = "200"),
-        @Parameter(name = "caloriesTo", description = "Максимальное количество калорий", example = "500"),
-        @Parameter(name = "sortBy", description = "Поле для сортировки (date, duration, calories, name, type)", example = "date"),
-        @Parameter(name = "sortDirection", description = "Направление сортировки (asc, desc)", example = "desc"),
-        @Parameter(name = "page", description = "Номер страницы (начиная с 0)", example = "0"),
-        @Parameter(name = "size", description = "Размер страницы (от 1 до 100)", example = "10")
+        @Parameter(name = "filter", description = "Фильтры для получения тренировок", example = "{\"dateFilter\": {\"dateFrom\": \"2024-12-01\", \"dateTo\": \"2024-12-31\"}, \"durationFilter\": {\"durationFrom\": 30, \"durationTo\": 90}, \"caloriesFilter\": {\"caloriesFrom\": 200, \"caloriesTo\": 500}}"),
+        @Parameter(name = "pageable", description = "Пагинация", example = "{\"page\": 0, \"size\": 10, \"sort\": \"date,desc\"}")
     })
     @ApiResponses(value = {
         @ApiResponse(
@@ -82,17 +70,8 @@ public interface WorkoutsControllerApi {
         )
     })
     ResponseEntity<Page<WorkoutResponse>> getAllWorkouts(
-        @RequestParam(required = false) WorkoutType type,
-        @RequestParam(required = false) LocalDate dateFrom,
-        @RequestParam(required = false) LocalDate dateTo,
-        @RequestParam(required = false) Integer durationFrom,
-        @RequestParam(required = false) Integer durationTo,
-        @RequestParam(required = false) Integer caloriesFrom,
-        @RequestParam(required = false) Integer caloriesTo,
-        @RequestParam(required = false) String sortBy,
-        @RequestParam(required = false) String sortDirection,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+        @Valid WorkoutFilterDto filter,
+        @Valid Pageable pageable
     );
 
     @Operation(

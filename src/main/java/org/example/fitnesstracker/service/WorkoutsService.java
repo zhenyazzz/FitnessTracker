@@ -12,13 +12,13 @@ import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.ExerciseRepository;
 import org.example.fitnesstracker.model.Workout;
 import org.example.fitnesstracker.model.WorkoutExercise;
-import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.model.User;
 import org.example.fitnesstracker.model.Exercise;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutExerciseRequest;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
 import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.WorkoutNotFoundException;
@@ -26,12 +26,8 @@ import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
 import org.example.fitnesstracker.mapper.WorkoutMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,39 +46,20 @@ public class WorkoutsService {
 
     
     public Page<WorkoutResponse> getAllWorkouts(
-        WorkoutType type,
-        LocalDate dateFrom, LocalDate dateTo,
-        Integer durationFrom, Integer durationTo,
-        Integer caloriesFrom, Integer caloriesTo,
-        String sortBy, String sortDirection,
-        int page, int size
+        WorkoutFilterDto filter,
+        Pageable pageable
     ) {
 
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
-        if (sortBy == null) {
-            sortBy = "date";
-        }
-        if (sortDirection == null) {
-            sortDirection = "desc";
-        }
-
-        size = Math.min(Math.max(size, 1), 100);
-
-        Sort sort = sortDirection.equalsIgnoreCase("asc") 
-            ? Sort.by(Direction.ASC, sortBy) 
-            : Sort.by(Direction.DESC, sortBy);
-
-        Pageable pageable = PageRequest.of(page, size, sort);
 
         Specification<Workout> specification = WorkoutSpecifications.belongsToUser(currentUserId)
-            .and(WorkoutSpecifications.hasType(type))
-            .and(WorkoutSpecifications.hasDateFrom(dateFrom))
-            .and(WorkoutSpecifications.hasDateTo(dateTo))
-            .and(WorkoutSpecifications.hasDurationFrom(durationFrom))
-            .and(WorkoutSpecifications.hasDurationTo(durationTo))
-            .and(WorkoutSpecifications.hasCaloriesFrom(caloriesFrom))
-            .and(WorkoutSpecifications.hasCaloriesTo(caloriesTo));
+            .and(WorkoutSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+            .and(WorkoutSpecifications.hasDateTo(filter.dateFilter().dateTo()))
+            .and(WorkoutSpecifications.hasDurationFrom(filter.durationFilter().durationFrom()))
+            .and(WorkoutSpecifications.hasDurationTo(filter.durationFilter().durationTo()))
+            .and(WorkoutSpecifications.hasCaloriesFrom(filter.caloriesFilter().caloriesFrom()))
+            .and(WorkoutSpecifications.hasCaloriesTo(filter.caloriesFilter().caloriesTo()));
 
         Page<Workout> workouts = workoutsRepository.findAll(specification, pageable);
         

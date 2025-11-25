@@ -13,6 +13,7 @@ import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.specification.MediaSpecifications;
 import org.example.fitnesstracker.model.Media;
 import org.example.fitnesstracker.model.User;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.exception.AccessDeniedException;
@@ -25,6 +26,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -36,31 +38,17 @@ public class MediaService {
     private final MinioService minioService;
 
     public Page<MediaResponse> getAllMedia(
-        String sortBy, String sortDirection,
-        LocalDate dateFrom, LocalDate dateTo,
-        int page, int size
+        MediaFilterDto filter,
+        Pageable pageable
     ) {
-
-        if (sortBy == null) {
-            sortBy = "createdAt";
-        }
-        if (sortDirection == null) {
-            sortDirection = "desc";
-        }
-
-        size = Math.min(Math.max(size, 1), 100);
-
-        Sort sort = sortDirection.equalsIgnoreCase("asc") 
-            ? Sort.by(Direction.ASC, sortBy) 
-            : Sort.by(Direction.DESC, sortBy);
 
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId)
-            .and(MediaSpecifications.hasDateFrom(dateFrom))
-            .and(MediaSpecifications.hasDateTo(dateTo));
+            .and(MediaSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+            .and(MediaSpecifications.hasDateTo(filter.dateFilter().dateTo()));
 
-        Page<Media> mediaPage = mediaRepository.findAll(specification, PageRequest.of(page, size, sort));
+        Page<Media> mediaPage = mediaRepository.findAll(specification, pageable);
         return mediaPage.map(media -> {
             String url = minioService.generateFileUrl(media.getPath());
             return mediaMapper.toResponse(media, url);

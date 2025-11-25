@@ -10,9 +10,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.ErrorResponse;
 import org.example.fitnesstracker.dto.response.MediaResponse;
@@ -20,11 +19,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDate;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
+import org.springframework.data.domain.Pageable;
+import jakarta.validation.Valid;
 
 @Tag(name = "Media", description = "API для работы с медиа-данными")
 public interface MediaControllerApi {
@@ -35,12 +35,8 @@ public interface MediaControllerApi {
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
-        @Parameter(name = "sortBy", description = "Поле для сортировки (createdAt, fileSize, mimeType, note)", example = "createdAt"),
-        @Parameter(name = "sortDirection", description = "Направление сортировки (asc, desc)", example = "desc"),
-        @Parameter(name = "dateFrom", description = "Начальная дата фильтрации (формат: YYYY-MM-DD)", example = "2024-12-01"),
-        @Parameter(name = "dateTo", description = "Конечная дата фильтрации (формат: YYYY-MM-DD)", example = "2024-12-31"),
-        @Parameter(name = "page", description = "Номер страницы (начиная с 0)", example = "0"),
-        @Parameter(name = "size", description = "Размер страницы (от 1 до 100)", example = "10")
+        @Parameter(name = "filter", description = "Фильтры для получения медиа-данных", example = "{\"dateFilter\": {\"dateFrom\": \"2024-12-01\", \"dateTo\": \"2024-12-31\"}}"),
+        @Parameter(name = "pageable", description = "Пагинация", example = "{\"page\": 0, \"size\": 10, \"sort\": \"createdAt,desc\"}")
     })
     @ApiResponses(value = {
         @ApiResponse(
@@ -77,12 +73,8 @@ public interface MediaControllerApi {
         )
     })
     ResponseEntity<Page<MediaResponse>> getAllMedia(
-        @RequestParam(required = false) String sortBy,
-        @RequestParam(required = false) String sortDirection,
-        @RequestParam(required = false) LocalDate dateFrom,
-        @RequestParam(required = false) LocalDate dateTo,
-        @RequestParam(defaultValue = "0") @Min(0) int page,
-        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+        @Valid MediaFilterDto filter,
+        @Valid Pageable pageable
     );
 
     @Operation(
