@@ -11,8 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestParam;
-import java.time.LocalDate;
+import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
+import org.example.fitnesstracker.dto.request.analytics.AnalyticsRequest;
 
 import org.example.fitnesstracker.dto.response.ErrorResponse;
 import org.example.fitnesstracker.dto.response.analytics.AnalyticsResponse;
@@ -134,8 +135,7 @@ public interface AnalyticsControllerApi {
         )
     })
     ResponseEntity<AnalyticsResponse> getAnalytics(
-        @RequestParam(required = false) LocalDate dateFrom,
-        @RequestParam(required = false) LocalDate dateTo
+        @Valid @RequestBody AnalyticsRequest request
     );
 
 }
