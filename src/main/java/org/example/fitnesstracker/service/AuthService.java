@@ -38,18 +38,28 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-
         log.info("Registering user with email: {}", request.email());
 
         if (userRepository.existsByEmail(request.email())) {
             log.error("User with email {} already exists", request.email());
             throw new EmailAlreadyExistsException("User with email " + request.email() + " already exists");
         }
-
         
+        User user = createAndSaveUser(request);
+
+        log.info("User registered successfully with email: {} and role: {}", request.email(), RoleName.USER);
+
+        AuthResponse tokens = generateAndSaveTokens(user);
+
+        log.info("Tokens generated and refresh token saved for user: {}", user.getEmail());
+    
+        return tokens;
+    }
+
+    private User createAndSaveUser(RegisterRequest request) {
         Role userRole = roleRepository.findByName(RoleName.USER)
             .orElseThrow(() -> new RoleNotFoundException("Role USER not found in database. Please run database migrations."));
-        
+
         User user = User.builder()
             .email(request.email())
             .password(passwordEncoder.encode(request.password()))
@@ -59,24 +69,7 @@ public class AuthService {
         user.getRoles().add(userRole);
         
         userRepository.save(user);
-        log.info("User registered successfully with email: {} and role: {}", request.email(), RoleName.USER);
-
-        String accessToken = jwtService.generateAccessToken(user);
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        RefreshToken refresh = RefreshToken.builder()
-                .user(user)
-                .token(refreshToken)
-                .expiryDate(jwtService.extractExpirationLocal(refreshToken))
-                .build();
-    
-        refreshTokenRepository.save(refresh);
-        log.info("Tokens generated and refresh token saved for user: {}", user.getEmail());
-    
-        return new AuthResponse(
-                accessToken,
-                refreshToken
-        );
+        return user;
     }
 
     @Transactional
@@ -90,24 +83,26 @@ public class AuthService {
             throw new BadCredentialsException("Invalid password");
         }
         
+        refreshTokenRepository.deleteByUser(user);
+
+        AuthResponse tokens = generateAndSaveTokens(user);
+
+        log.info("User logged in successfully with email: {}", user.getEmail());
+    
+        return tokens;        
+    }
+
+    private AuthResponse generateAndSaveTokens(User user) {
         String refreshToken = jwtService.generateRefreshToken(user);
         String accessToken  = jwtService.generateAccessToken(user);
-    
-        refreshTokenRepository.deleteByUser(user);
     
         RefreshToken refreshed = RefreshToken.builder()
                 .user(user)
                 .token(refreshToken)
                 .expiryDate(jwtService.extractExpirationLocal(refreshToken))
                 .build();
-    
         refreshTokenRepository.save(refreshed);
-        log.info("User logged in successfully with email: {}", user.getEmail());
-    
-        return new AuthResponse(
-            accessToken,
-            refreshToken
-        );        
+        return new AuthResponse(accessToken, refreshToken);
     }
 
     @Transactional
