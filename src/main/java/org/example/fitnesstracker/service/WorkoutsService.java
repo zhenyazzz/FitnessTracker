@@ -49,23 +49,44 @@ public class WorkoutsService {
         WorkoutFilterDto filter,
         Pageable pageable
     ) {
-
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-
-        Specification<Workout> specification = WorkoutSpecifications.belongsToUser(currentUserId)
-            .and(WorkoutSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
-            .and(WorkoutSpecifications.hasDateTo(filter.dateFilter().dateTo()))
-            .and(WorkoutSpecifications.hasDurationFrom(filter.durationFilter().durationFrom()))
-            .and(WorkoutSpecifications.hasDurationTo(filter.durationFilter().durationTo()))
-            .and(WorkoutSpecifications.hasCaloriesFrom(filter.caloriesFilter().caloriesFrom()))
-            .and(WorkoutSpecifications.hasCaloriesTo(filter.caloriesFilter().caloriesTo()));
-
+        Specification<Workout> specification = buildSpecification(filter);
+        
         Page<Workout> workouts = workoutsRepository.findAll(specification, pageable);
         
         return workouts.map(workoutMapper::toResponse);
     }
-    
+
+    private Specification<Workout> buildSpecification(WorkoutFilterDto filter) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        Specification<Workout> specification = WorkoutSpecifications.belongsToUser(currentUserId);
+        
+        if (filter != null) {
+            if (filter.type() != null) {
+                specification = specification.and(WorkoutSpecifications.hasType(filter.type()));
+            }
+            
+            if (filter.dateFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+                    .and(WorkoutSpecifications.hasDateTo(filter.dateFilter().dateTo()));
+            }
+            
+            if (filter.durationFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasDurationFrom(filter.durationFilter().durationFrom()))
+                    .and(WorkoutSpecifications.hasDurationTo(filter.durationFilter().durationTo()));
+            }
+            
+            if (filter.caloriesFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasCaloriesFrom(filter.caloriesFilter().caloriesFrom()))
+                    .and(WorkoutSpecifications.hasCaloriesTo(filter.caloriesFilter().caloriesTo()));
+            }
+        }
+        
+        return specification;
+    }
 
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);

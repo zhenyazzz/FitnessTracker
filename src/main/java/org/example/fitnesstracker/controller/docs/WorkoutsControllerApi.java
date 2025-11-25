@@ -22,18 +22,46 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 @Tag(name = "Workouts", description = "API для работы с тренировками")
 public interface WorkoutsControllerApi {
 
     @Operation(
         summary = "Получение списка всех тренировок",
-        description = "Получает список всех тренировок пользователя с возможностью фильтрации и сортировки",
+        description = "Получает список всех тренировок пользователя с возможностью фильтрации по типу, дате, длительности, калориям и пагинации. " +
+                      "По умолчанию сортировка по дате (date) в порядке убывания. Все фильтры опциональны.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "Фильтры для получения тренировок (опционально)",
+        required = false,
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = WorkoutFilterDto.class),
+            examples = @ExampleObject(
+                name = "Пример фильтра",
+                value = "{\n  \"type\": \"STRENGTH\",\n  \"dateFilter\": {\n    \"dateFrom\": \"2024-12-01\",\n    \"dateTo\": \"2024-12-31\"\n  },\n  \"durationFilter\": {\n    \"durationFrom\": 30,\n    \"durationTo\": 90\n  },\n  \"caloriesFilter\": {\n    \"caloriesFrom\": 200,\n    \"caloriesTo\": 500\n  }\n}"
+            )
+        )
+    )
     @Parameters({
-        @Parameter(name = "filter", description = "Фильтры для получения тренировок", example = "{\"dateFilter\": {\"dateFrom\": \"2024-12-01\", \"dateTo\": \"2024-12-31\"}, \"durationFilter\": {\"durationFrom\": 30, \"durationTo\": 90}, \"caloriesFilter\": {\"caloriesFrom\": 200, \"caloriesTo\": 500}}"),
-        @Parameter(name = "pageable", description = "Пагинация", example = "{\"page\": 0, \"size\": 10, \"sort\": \"date,desc\"}")
+        @Parameter(
+            name = "page",
+            description = "Номер страницы (начиная с 0)",
+            example = "0"
+        ),
+        @Parameter(
+            name = "size",
+            description = "Размер страницы (по умолчанию 10, максимум 100)",
+            example = "10"
+        ),
+        @Parameter(
+            name = "sort",
+            description = "Параметры сортировки (по умолчанию: date,desc). Формат: поле,направление. Доступные поля: date, duration, calories, createdAt",
+            example = "date,desc"
+        )
     })
     @ApiResponses(value = {
         @ApiResponse(
@@ -42,6 +70,18 @@ public interface WorkoutsControllerApi {
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = Page.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Ошибка валидации данных (например, dateFrom > dateTo, durationFrom > durationTo, caloriesFrom > caloriesTo)",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Ошибка валидации",
+                    value = "{\n  \"message\": \"dateFrom must be before or equal to dateTo\",\n  \"status\": 400,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
             )
         ),
         @ApiResponse(
@@ -70,8 +110,8 @@ public interface WorkoutsControllerApi {
         )
     })
     ResponseEntity<Page<WorkoutResponse>> getAllWorkouts(
-        @Valid WorkoutFilterDto filter,
-        @Valid Pageable pageable
+        @Valid @RequestBody WorkoutFilterDto filter,
+        @PageableDefault(size = 10, sort = "date", direction = Sort.Direction.DESC) Pageable pageable
     );
 
     @Operation(

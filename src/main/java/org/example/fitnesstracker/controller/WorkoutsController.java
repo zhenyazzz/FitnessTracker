@@ -11,6 +11,8 @@ import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
 import org.example.fitnesstracker.service.WorkoutsService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,8 +35,8 @@ public class WorkoutsController implements WorkoutsControllerApi {
     @GetMapping
     @Override
     public ResponseEntity<Page<WorkoutResponse>> getAllWorkouts(
-        @Valid WorkoutFilterDto filter,
-        @Valid Pageable pageable
+        @Valid @RequestBody WorkoutFilterDto filter,
+        @PageableDefault(size = 10, sort = "date", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.debug("Getting workouts with filters: {}", filter);
         Page<WorkoutResponse> result = workoutsService.getAllWorkouts(filter, pageable);

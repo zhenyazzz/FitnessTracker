@@ -7,7 +7,6 @@ import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDate;
 import org.example.fitnesstracker.repository.MediaRepository;
 import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.specification.MediaSpecifications;
@@ -22,10 +21,7 @@ import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.mapper.MediaMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @Service
@@ -41,18 +37,25 @@ public class MediaService {
         MediaFilterDto filter,
         Pageable pageable
     ) {
-
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId)
-            .and(MediaSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
-            .and(MediaSpecifications.hasDateTo(filter.dateFilter().dateTo()));
+        Specification<Media> specification = buildSpecification(filter);
 
         Page<Media> mediaPage = mediaRepository.findAll(specification, pageable);
         return mediaPage.map(media -> {
             String url = minioService.generateFileUrl(media.getPath());
             return mediaMapper.toResponse(media, url);
         });
+    }
+
+    private Specification<Media> buildSpecification(MediaFilterDto filter) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId);
+        
+        if (filter != null && filter.dateFilter() != null) {
+            specification = specification
+                .and(MediaSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+                .and(MediaSpecifications.hasDateTo(filter.dateFilter().dateTo()));
+        }
+        return specification;
     }
 
     public MediaResponse getMediaById(Long id) {

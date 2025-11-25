@@ -4,6 +4,10 @@ import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutExerciseRequest;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
+import org.example.fitnesstracker.dto.request.DateFilterDto;
+import org.example.fitnesstracker.dto.request.DurationFilterDto;
+import org.example.fitnesstracker.dto.request.CaloriesFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
 import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
@@ -135,7 +139,7 @@ class WorkoutsServiceTest {
 
         // Act
         Page<WorkoutResponse> result = workoutsService.getAllWorkouts(
-            null, null, null, null, null, null, null, null, null, 0, 10
+            new WorkoutFilterDto(null, new DateFilterDto(null, null), new DurationFilterDto(null, null), new CaloriesFilterDto(null, null)), pageable
         );
 
         // Assert

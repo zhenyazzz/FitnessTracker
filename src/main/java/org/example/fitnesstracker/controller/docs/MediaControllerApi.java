@@ -19,11 +19,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import jakarta.validation.Valid;
 
 @Tag(name = "Media", description = "API для работы с медиа-данными")
@@ -31,12 +34,38 @@ public interface MediaControllerApi {
 
     @Operation(
         summary = "Получение списка всех медиа-данных",
-        description = "Получает список всех медиа-данных пользователя с возможностью фильтрации и сортировки",
+        description = "Получает список всех медиа-данных пользователя с возможностью фильтрации по дате и пагинации. " +
+                      "По умолчанию сортировка по дате создания (createdAt) в порядке убывания.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "Фильтры для получения медиа-данных (опционально)",
+        required = false,
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = MediaFilterDto.class),
+            examples = @ExampleObject(
+                name = "Пример фильтра",
+                value = "{\n  \"dateFilter\": {\n    \"dateFrom\": \"2024-12-01\",\n    \"dateTo\": \"2024-12-31\"\n  }\n}"
+            )
+        )
+    )
     @Parameters({
-        @Parameter(name = "filter", description = "Фильтры для получения медиа-данных", example = "{\"dateFilter\": {\"dateFrom\": \"2024-12-01\", \"dateTo\": \"2024-12-31\"}}"),
-        @Parameter(name = "pageable", description = "Пагинация", example = "{\"page\": 0, \"size\": 10, \"sort\": \"createdAt,desc\"}")
+        @Parameter(
+            name = "page",
+            description = "Номер страницы (начиная с 0)",
+            example = "0"
+        ),
+        @Parameter(
+            name = "size",
+            description = "Размер страницы (по умолчанию 10, максимум 100)",
+            example = "10"
+        ),
+        @Parameter(
+            name = "sort",
+            description = "Параметры сортировки (по умолчанию: createdAt,desc). Формат: поле,направление",
+            example = "createdAt,desc"
+        )
     })
     @ApiResponses(value = {
         @ApiResponse(
@@ -45,6 +74,18 @@ public interface MediaControllerApi {
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = Page.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Ошибка валидации данных (например, dateFrom > dateTo)",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Ошибка валидации",
+                    value = "{\n  \"message\": \"dateFrom must be before or equal to dateTo\",\n  \"status\": 400,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
             )
         ),
         @ApiResponse(
@@ -73,8 +114,8 @@ public interface MediaControllerApi {
         )
     })
     ResponseEntity<Page<MediaResponse>> getAllMedia(
-        @Valid MediaFilterDto filter,
-        @Valid Pageable pageable
+        @Valid @RequestBody MediaFilterDto filter,
+        @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     );
 
     @Operation(
