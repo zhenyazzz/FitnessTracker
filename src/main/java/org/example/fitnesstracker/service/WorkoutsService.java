@@ -21,6 +21,7 @@ import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
 import org.example.fitnesstracker.exception.WorkoutNotFoundException;
 import org.example.fitnesstracker.exception.UserNotFoundException;
+import org.example.fitnesstracker.exception.WorkoutExerciseNotFoundException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
 import org.example.fitnesstracker.mapper.WorkoutMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
@@ -192,7 +193,10 @@ public class WorkoutsService {
         
         Workout workout = findWorkoutByIdAndUserId(workoutId, currentUserId);
         
-        workout.getWorkoutExercises().removeIf(we -> we.getId().equals(workoutExerciseId));
+        boolean removed = workout.getWorkoutExercises().removeIf(we -> we.getId().equals(workoutExerciseId));
+        if (!removed) {
+            throw new WorkoutExerciseNotFoundException("Workout exercise with id " + workoutExerciseId + " not found in workout " + workoutId);
+        }
 
         workoutsRepository.save(workout);
         

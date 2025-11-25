@@ -15,7 +15,6 @@ import org.example.fitnesstracker.model.User;
 import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
 import org.example.fitnesstracker.dto.response.MediaResponse;
-import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.MediaNotFoundException;
 import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.mapper.MediaMapper;
@@ -92,11 +91,8 @@ public class MediaService {
     @Transactional
     public void deleteMedia(Long id) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        Media media = mediaRepository.findById(id)
-            .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id));
-        if (!media.getUser().getId().equals(currentUserId)) {
-            throw new AccessDeniedException("You can only delete your own media");
-        }
+        Media media = mediaRepository.findByIdAndUserId(id, currentUserId)
+            .orElseThrow(() -> new MediaNotFoundException("Media not found with id: " + id + " and user id: " + currentUserId));
 
         minioService.deleteFile(media.getPath());
 

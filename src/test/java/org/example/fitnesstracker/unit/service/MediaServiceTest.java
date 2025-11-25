@@ -296,14 +296,14 @@ class MediaServiceTest {
     @DisplayName("Should delete media successfully")
     void should_DeleteMedia_Successfully() throws Exception {
         // Arrange
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.of(testMedia));
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.of(testMedia));
 
         // Act
         mediaService.deleteMedia(TEST_MEDIA_ID);
 
         // Assert
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService).deleteFile(testMedia.getPath());
         verify(mediaRepository).delete(testMedia);
     }
@@ -312,7 +312,7 @@ class MediaServiceTest {
     @DisplayName("Should throw MediaNotFoundException when media not found")
     void should_ThrowMediaNotFoundException_WhenMediaNotFoundToDelete() throws Exception {
         // Arrange
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.empty());
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> mediaService.deleteMedia(TEST_MEDIA_ID))
@@ -320,7 +320,7 @@ class MediaServiceTest {
             .hasMessageContaining("Media not found with id: " + TEST_MEDIA_ID);
 
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService, never()).deleteFile(any());
         verify(mediaRepository, never()).delete(any(Media.class));
     }
@@ -346,7 +346,7 @@ class MediaServiceTest {
             .createdAt(LocalDateTime.now())
             .build();
 
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.of(mediaBelongingToOtherUser));
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.of(mediaBelongingToOtherUser));
 
         // Act & Assert
         assertThatThrownBy(() -> mediaService.deleteMedia(TEST_MEDIA_ID))
@@ -354,7 +354,7 @@ class MediaServiceTest {
             .hasMessageContaining("You can only delete your own media");
 
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService, never()).deleteFile(any());
         verify(mediaRepository, never()).delete(any(Media.class));
     }

@@ -189,6 +189,7 @@ public class AnalyticsService {
 
     private int calculateMaxCaloriesBurnedInWorkout(List<Workout> workouts) {
         return workouts.stream()
+            .filter(w -> w.getCalories() != null)
             .map(Workout::getCalories)
             .max(Integer::compare)
             .orElse(0);
@@ -196,6 +197,7 @@ public class AnalyticsService {
 
     private int calculateMaxDurationInWorkout(List<Workout> workouts) {
         return workouts.stream()
+            .filter(w -> w.getDuration() != null)
             .map(Workout::getDuration)
             .max(Integer::compare)
             .orElse(0);

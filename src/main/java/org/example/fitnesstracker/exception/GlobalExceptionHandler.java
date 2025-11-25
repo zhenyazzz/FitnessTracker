@@ -70,8 +70,9 @@ public class GlobalExceptionHandler {
             WorkoutNotFoundException.class,
             ExerciseNotFoundException.class,
             UserNotFoundException.class,
-            MediaNotFoundException.class
-    })
+            MediaNotFoundException.class,
+            WorkoutExerciseNotFoundException.class
+        })
     public ResponseEntity<ErrorResponse> handleNotFoundException(Exception ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(ex.getMessage(), HttpStatus.NOT_FOUND.value());
