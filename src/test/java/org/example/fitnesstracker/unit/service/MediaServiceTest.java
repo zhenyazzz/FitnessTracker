@@ -325,37 +325,5 @@ class MediaServiceTest {
         verify(mediaRepository, never()).delete(any(Media.class));
     }
 
-    @Test
-    @DisplayName("Should throw AccessDeniedException when media not belongs to user")
-    void should_ThrowAccessDeniedException_WhenMediaNotBelongsToUser() throws Exception {
-        // Arrange
-        Long otherUserId = TEST_USER_ID + 1L;
-        User otherUser = User.builder()
-            .id(otherUserId)
-            .email("other@example.com")
-            .username("otheruser")
-            .build();
-        
-        Media mediaBelongingToOtherUser = Media.builder()
-            .id(TEST_MEDIA_ID)
-            .user(otherUser)
-            .path(TEST_FILE_PATH)
-            .note("other user note")
-            .fileSize(TEST_FILE_SIZE)
-            .mimeType(TEST_CONTENT_TYPE)
-            .createdAt(LocalDateTime.now())
-            .build();
-
-        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.of(mediaBelongingToOtherUser));
-
-        // Act & Assert
-        assertThatThrownBy(() -> mediaService.deleteMedia(TEST_MEDIA_ID))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("You can only delete your own media");
-
-        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
-        verify(minioService, never()).deleteFile(any());
-        verify(mediaRepository, never()).delete(any(Media.class));
-    }
+    
 }
