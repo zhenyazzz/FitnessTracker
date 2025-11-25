@@ -5,12 +5,13 @@ import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.dto.request.DateFilterDto;
 import org.example.fitnesstracker.dto.request.DurationFilterDto;
 import org.example.fitnesstracker.dto.request.CaloriesFilterDto;
+import jakarta.validation.Valid;
 
 public record WorkoutFilterDto(
     WorkoutType type,
-    DateFilterDto dateFilter,   
-    DurationFilterDto durationFilter,
-    CaloriesFilterDto caloriesFilter
+    @Valid DateFilterDto dateFilter,   
+    @Valid DurationFilterDto durationFilter,
+    @Valid CaloriesFilterDto caloriesFilter
  
 ) {
 
