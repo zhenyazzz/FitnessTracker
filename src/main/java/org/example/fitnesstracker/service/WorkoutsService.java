@@ -12,30 +12,23 @@ import org.example.fitnesstracker.repository.UserRepository;
 import org.example.fitnesstracker.repository.ExerciseRepository;
 import org.example.fitnesstracker.model.Workout;
 import org.example.fitnesstracker.model.WorkoutExercise;
-import org.example.fitnesstracker.model.enums.WorkoutType;
 import org.example.fitnesstracker.model.User;
 import org.example.fitnesstracker.model.Exercise;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
-import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutExerciseRequest;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
-import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.WorkoutNotFoundException;
 import org.example.fitnesstracker.exception.UserNotFoundException;
+import org.example.fitnesstracker.exception.WorkoutExerciseNotFoundException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
 import org.example.fitnesstracker.mapper.WorkoutMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.PageRequest;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,66 +39,64 @@ public class WorkoutsService {
     private final UserRepository userRepository;
     private final ExerciseRepository exerciseRepository;
     private final WorkoutMapper workoutMapper;
-    private final SecurityUtils securityUtils;
-
 
     
+    @Transactional(readOnly = true)
     public Page<WorkoutResponse> getAllWorkouts(
-        WorkoutType type,
-        LocalDate dateFrom, LocalDate dateTo,
-        Integer durationFrom, Integer durationTo,
-        Integer caloriesFrom, Integer caloriesTo,
-        String sortBy, String sortDirection,
-        int page, int size
+        WorkoutFilterDto filter,
+        Pageable pageable
     ) {
-
-        Long currentUserId = securityUtils.getCurrentUserId();
-
-        if (sortBy == null) {
-            sortBy = "date";
-        }
-        if (sortDirection == null) {
-            sortDirection = "desc";
-        }
-
-        size = Math.min(Math.max(size, 1), 100);
-
-        Sort sort = sortDirection.equalsIgnoreCase("asc") 
-            ? Sort.by(Direction.ASC, sortBy) 
-            : Sort.by(Direction.DESC, sortBy);
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-
-        Specification<Workout> specification = WorkoutSpecifications.belongsToUser(currentUserId)
-            .and(WorkoutSpecifications.hasType(type))
-            .and(WorkoutSpecifications.hasDateFrom(dateFrom))
-            .and(WorkoutSpecifications.hasDateTo(dateTo))
-            .and(WorkoutSpecifications.hasDurationFrom(durationFrom))
-            .and(WorkoutSpecifications.hasDurationTo(durationTo))
-            .and(WorkoutSpecifications.hasCaloriesFrom(caloriesFrom))
-            .and(WorkoutSpecifications.hasCaloriesTo(caloriesTo));
-
+        Specification<Workout> specification = buildSpecification(filter);
+        
         Page<Workout> workouts = workoutsRepository.findAll(specification, pageable);
         
         return workouts.map(workoutMapper::toResponse);
     }
-    
 
+    private Specification<Workout> buildSpecification(WorkoutFilterDto filter) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        Specification<Workout> specification = WorkoutSpecifications.belongsToUser(currentUserId);
+        
+        if (filter != null) {
+            if (filter.type() != null) {
+                specification = specification.and(WorkoutSpecifications.hasType(filter.type()));
+            }
+            
+            if (filter.dateFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
+                    .and(WorkoutSpecifications.hasDateTo(filter.dateFilter().dateTo()));
+            }
+            
+            if (filter.durationFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasDurationFrom(filter.durationFilter().durationFrom()))
+                    .and(WorkoutSpecifications.hasDurationTo(filter.durationFilter().durationTo()));
+            }
+            
+            if (filter.caloriesFilter() != null) {
+                specification = specification
+                    .and(WorkoutSpecifications.hasCaloriesFrom(filter.caloriesFilter().caloriesFrom()))
+                    .and(WorkoutSpecifications.hasCaloriesTo(filter.caloriesFilter().caloriesTo()));
+            }
+        }
+        
+        return specification;
+    }
+
+    @Transactional(readOnly = true)
     public WorkoutResponse getWorkoutById(Long id) {
         log.debug("Getting workout by id: {}", id);
-        Long currentUserId = securityUtils.getCurrentUserId();
-        Workout workout = workoutsRepository.findByIdAndUserId(id, currentUserId)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found", id);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         log.info("Successfully retrieved workout {} for user {}", id, workout.getUser().getId());
         return workoutMapper.toResponse(workout);
     }
 
     @Transactional
     public WorkoutResponse createWorkout(CreateWorkoutRequest request) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Creating workout '{}' for user {}", request.name(), currentUserId);
         
         User user = userRepository.findById(currentUserId)
@@ -117,23 +108,8 @@ public class WorkoutsService {
         Workout workout = workoutMapper.toEntity(request);
         workout.setUser(user);
         
-        List<WorkoutExercise> workoutExercises = new ArrayList<>();
-        if (request.exercises() != null && !request.exercises().isEmpty()) {
-            log.debug("Adding {} exercises to workout", request.exercises().size());
-            for (CreateWorkoutExerciseRequest exerciseRequest : request.exercises()) {
-                Exercise exercise = exerciseRepository.findById(exerciseRequest.exerciseId())
-                    .orElseThrow(() -> {
-                        log.error("Exercise with id {} not found while creating workout", exerciseRequest.exerciseId());
-                        return new ExerciseNotFoundException("Exercise with id " + exerciseRequest.exerciseId() + " not found");
-                    });
-                
-                WorkoutExercise workoutExercise = workoutMapper.toEntity(exerciseRequest);
-                workoutExercise.setWorkout(workout);
-                workoutExercise.setExercise(exercise);
-                workoutExercises.add(workoutExercise);
-                log.debug("Added exercise {} (id: {}) to workout", exercise.getName(), exercise.getId());
-            }
-        }
+        List<WorkoutExercise> workoutExercises = createWorkoutExercises(workout, request.exercises());
+
         workout.setWorkoutExercises(workoutExercises);
         
         Workout savedWorkout = workoutsRepository.save(workout);
@@ -143,31 +119,34 @@ public class WorkoutsService {
         return workoutMapper.toResponse(savedWorkout);
     }
 
+    private List<WorkoutExercise> createWorkoutExercises(Workout workout, List<CreateWorkoutExerciseRequest> exerciseRequests) {
+        List<WorkoutExercise> workoutExercises = new ArrayList<>();
+        if (exerciseRequests != null && !exerciseRequests.isEmpty()) {
+            log.debug("Adding {} exercises to workout", exerciseRequests.size());
+            for (CreateWorkoutExerciseRequest exerciseRequest : exerciseRequests) {
+                Exercise exercise = findExerciseById(exerciseRequest.exerciseId());
+                
+                WorkoutExercise workoutExercise = workoutMapper.toEntity(exerciseRequest);
+                workoutExercise.setWorkout(workout);
+                workoutExercise.setExercise(exercise);
+                workoutExercises.add(workoutExercise);
+                log.debug("Added exercise {} (id: {}) to workout", exercise.getName(), exercise.getId());
+            }
+        }
+        return workoutExercises;
+    }
+
     @Transactional
     public WorkoutResponse updateWorkout(Long id, UpdateWorkoutRequest request) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Updating workout {} by user {}", id, currentUserId);
         
-        Workout workout = workoutsRepository.findById(id)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found for update by user {}", id, currentUserId);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
-        
-        if (!workout.getUser().getId().equals(currentUserId)) {
-            log.warn("User {} attempted to update workout {} owned by user {}", 
-                currentUserId, id, workout.getUser().getId());
-            throw new AccessDeniedException("You can only update your own workouts");
-        }
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         
         log.debug("Updating workout fields: name={}, type={}, date={}, duration={}, calories={}", 
             request.name(), request.type(), request.date(), request.duration(), request.calories());
         
         workoutMapper.updateEntityFromRequest(request, workout);
-
-        if (request.exercises() != null) {
-            updateWorkoutExercises(workout, request.exercises());
-        }
         
         Workout updatedWorkout = workoutsRepository.save(workout);
         log.info("Successfully updated workout {} (id: {}) for user {}", 
@@ -175,47 +154,69 @@ public class WorkoutsService {
         
         return workoutMapper.toResponse(updatedWorkout);
     }
-    
-    private void updateWorkoutExercises(Workout workout, List<UpdateWorkoutExerciseRequest> exerciseRequests) {
-        List<WorkoutExercise> existingExercises = workout.getWorkoutExercises();
-        Map<Long, WorkoutExercise> exerciseMap = existingExercises.stream()
-            .collect(Collectors.toMap(WorkoutExercise::getId, ex -> ex));
-        
-        for (UpdateWorkoutExerciseRequest exerciseRequest : exerciseRequests) {
-            WorkoutExercise exercise = exerciseMap.get(exerciseRequest.workoutExerciseId());
-            if (exercise != null) {
-                workoutMapper.updateExerciseFromRequest(exerciseRequest, exercise);
-            }
-        }
-        
-        List<Long> requestedIds = exerciseRequests.stream()
-            .map(UpdateWorkoutExerciseRequest::workoutExerciseId)
-            .toList();
-        
-        existingExercises.removeIf(ex -> !requestedIds.contains(ex.getId()));
-    }
 
     @Transactional
     public void deleteWorkout(Long id) {
-        Long currentUserId = securityUtils.getCurrentUserId();
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         log.info("Deleting workout {} by user {}", id, currentUserId);
         
-        Workout workout = workoutsRepository.findById(id)
-            .orElseThrow(() -> {
-                log.warn("Workout with id {} not found for deletion by user {}", id, currentUserId);
-                return new WorkoutNotFoundException("Workout with id " + id + " not found");
-            });
+        Workout workout = findWorkoutByIdAndUserId(id, currentUserId);
         
-        if (!workout.getUser().getId().equals(currentUserId)) {
-            log.warn("User {} attempted to delete workout {} owned by user {}", 
-                currentUserId, id, workout.getUser().getId());
-            throw new AccessDeniedException("You can only delete your own workouts");
-        }
-        
-        log.info("Deleting workout '{}' (id: {}) with {} exercises for user {}", 
-            workout.getName(), workout.getId(), workout.getWorkoutExercises().size(), currentUserId);
         workoutsRepository.delete(workout);
         log.info("Successfully deleted workout {} for user {}", id, currentUserId);
     }
 
+    @Transactional
+    public WorkoutResponse addExerciseToWorkout(Long workoutId, CreateWorkoutExerciseRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.info("Adding exercise {} to workout {} by user {}", request.exerciseId(), workoutId, currentUserId);
+        
+        Workout workout = findWorkoutByIdAndUserId(workoutId, currentUserId);
+        Exercise exercise = findExerciseById(request.exerciseId());
+
+        WorkoutExercise workoutExercise = workoutMapper.toEntity(request);
+        workoutExercise.setWorkout(workout);
+        workoutExercise.setExercise(exercise);
+        
+        workout.getWorkoutExercises().add(workoutExercise);
+        Workout savedWorkout = workoutsRepository.save(workout);
+        
+        log.info("Successfully added exercise {} to workout {} (id: {}) for user {}", 
+            exercise.getName(), savedWorkout.getName(), savedWorkout.getId(), currentUserId);
+        return workoutMapper.toResponse(savedWorkout);
+    }
+
+    @Transactional
+    public void removeExerciseFromWorkout(Long workoutId, Long workoutExerciseId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        log.info("Removing workout exercise {} from workout {} by user {}", workoutExerciseId, workoutId, currentUserId);
+        
+        Workout workout = findWorkoutByIdAndUserId(workoutId, currentUserId);
+        
+        boolean removed = workout.getWorkoutExercises().removeIf(we -> we.getId().equals(workoutExerciseId));
+        if (!removed) {
+            throw new WorkoutExerciseNotFoundException("Workout exercise with id " + workoutExerciseId + " not found in workout " + workoutId);
+        }
+
+        workoutsRepository.save(workout);
+        
+        log.info("Successfully removed workout exercise {} from workout {} for user {}", 
+            workoutExerciseId, workoutId, currentUserId);
+    }
+
+    private Workout findWorkoutByIdAndUserId(Long workoutId, Long userId) {
+        return workoutsRepository.findByIdAndUserId(workoutId, userId)
+            .orElseThrow(() -> {
+                log.warn("Workout with id {} not found for user {}", workoutId, userId);
+                return new WorkoutNotFoundException("Workout with id " + workoutId + " not found");
+            });
+    }
+
+    private Exercise findExerciseById(Long exerciseId) {
+        return exerciseRepository.findById(exerciseId)
+            .orElseThrow(() -> {
+                log.error("Exercise with id {} not found", exerciseId);
+                return new ExerciseNotFoundException("Exercise with id " + exerciseId + " not found");
+            });
+    }
 }

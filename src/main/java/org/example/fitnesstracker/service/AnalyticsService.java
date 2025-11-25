@@ -14,6 +14,7 @@ import org.example.fitnesstracker.repository.specification.WorkoutSpecifications
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.springframework.data.jpa.domain.Specification;
 
+import org.example.fitnesstracker.dto.request.analytics.AnalyticsRequest;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -26,72 +27,60 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final WorkoutsRepository workoutsRepository;
-    private final SecurityUtils securityUtils;
 
     @Transactional(readOnly = true)
-    public AnalyticsResponse getAnalytics(LocalDate dateFrom, LocalDate dateTo) {
-        Long currentUserId = securityUtils.getCurrentUserId();
-        log.info("Getting analytics for user {} from {} to {}", currentUserId, dateFrom, dateTo);
+    public AnalyticsResponse getAnalytics(AnalyticsRequest request) {
+        LocalDate dateFrom = request.dateFilter() != null ? request.dateFilter().dateFrom() : null;
+        LocalDate dateTo = request.dateFilter() != null ? request.dateFilter().dateTo() : null;
 
-        
-        Specification<Workout> allWorkoutsSpec = WorkoutSpecifications.belongsToUser(currentUserId);
-        List<Workout> allWorkouts = workoutsRepository.findAll(allWorkoutsSpec);
+        List<Workout> workouts = getWorkoutsInPeriod(request);
 
-        
-        List<Workout> workoutsInPeriod;
-        if (dateFrom != null || dateTo != null) {
-            Specification<Workout> periodSpec = WorkoutSpecifications.belongsToUser(currentUserId)
-                .and(WorkoutSpecifications.hasDateFrom(dateFrom))
-                .and(WorkoutSpecifications.hasDateTo(dateTo));
-            workoutsInPeriod = workoutsRepository.findAll(periodSpec);
-        } else {
-            workoutsInPeriod = allWorkouts;
-        }
+        long totalWorkouts = workouts.size();
+        double totalWeightLifted = calculateTotalWeightLifted(workouts);
+        int totalCaloriesBurned = calculateTotalCaloriesBurned(workouts);
+        int totalDuration = calculateTotalDuration(workouts);
 
-        
-        long totalWorkouts = allWorkouts.size();
-        double totalWeightLifted = calculateTotalWeightLifted(allWorkouts);
-        int totalCaloriesBurned = allWorkouts.stream()
-            .filter(w -> w.getCalories() != null)
-            .mapToInt(Workout::getCalories)
-            .sum();
-        int totalDuration = allWorkouts.stream()
-            .filter(w -> w.getDuration() != null)
-            .mapToInt(Workout::getDuration)
-            .sum();
+        log.info("Analytics calculated: workouts: {}, total weight: {} kg, total calories: {}",
+            totalWorkouts, totalWeightLifted, totalCaloriesBurned);
 
-        
-        long workoutsInPeriodCount = workoutsInPeriod.size();
-        double totalWeightLiftedInPeriod = calculateTotalWeightLifted(workoutsInPeriod);
-        int totalCaloriesBurnedInPeriod = workoutsInPeriod.stream()
-            .filter(w -> w.getCalories() != null)
-            .mapToInt(Workout::getCalories)
-            .sum();
-        int totalDurationInPeriod = workoutsInPeriod.stream()
-            .filter(w -> w.getDuration() != null)
-            .mapToInt(Workout::getDuration)
-            .sum();
-
-        log.info("Analytics calculated: total workouts: {}, workouts in period: {}, total weight: {} kg, total calories: {}",
-            totalWorkouts, workoutsInPeriodCount, totalWeightLifted, totalCaloriesBurned);
-
-        Map<WorkoutType, Integer> workoutsByType = calculateWorkoutsByType(allWorkouts);
-        MaxAchievements maxAchievements = calculateMaxAchievements(allWorkouts);
+        Map<WorkoutType, Integer> workoutsByType = calculateWorkoutsByType(workouts);
+        MaxAchievements maxAchievements = calculateMaxAchievements(workouts);
 
         return new AnalyticsResponse(
             totalWorkouts,
-            workoutsInPeriodCount,
             totalWeightLifted,
-            totalWeightLiftedInPeriod,
             totalCaloriesBurned,
-            totalCaloriesBurnedInPeriod,
             totalDuration,
-            totalDurationInPeriod,
             dateFrom,
             dateTo,
             workoutsByType,
             maxAchievements
         );
+    }
+
+    private List<Workout> getWorkoutsInPeriod(AnalyticsRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Specification<Workout> periodSpec = WorkoutSpecifications.belongsToUser(currentUserId);
+        if (request != null && request.dateFilter() != null) {
+            periodSpec = periodSpec
+                .and(WorkoutSpecifications.hasDateFrom(request.dateFilter().dateFrom()))
+                .and(WorkoutSpecifications.hasDateTo(request.dateFilter().dateTo()));
+        }
+        return workoutsRepository.findAll(periodSpec);
+    }
+
+    private int calculateTotalCaloriesBurned(List<Workout> workouts) {
+        return workouts.stream()
+            .filter(w -> w.getCalories() != null)
+            .mapToInt(Workout::getCalories)
+            .sum();
+    }
+
+    private int calculateTotalDuration(List<Workout> workouts) {
+        return workouts.stream()
+            .filter(w -> w.getDuration() != null)
+            .mapToInt(Workout::getDuration)
+            .sum();
     }
 
     private double calculateTotalWeightLifted(List<Workout> workouts) {
@@ -100,7 +89,6 @@ public class AnalyticsService {
             if (workout.getWorkoutExercises() != null) {
                 for (WorkoutExercise exercise : workout.getWorkoutExercises()) {
                     if (exercise.getWeight() != null && exercise.getReps() != null && exercise.getSets() != null) {
-                        
                         totalWeight += exercise.getWeight() * exercise.getReps() * exercise.getSets();
                     }
                 }
@@ -108,6 +96,7 @@ public class AnalyticsService {
         }
         return totalWeight;
     }
+
     private Map<WorkoutType, Integer> calculateWorkoutsByType(List<Workout> workouts) {
         return workouts.stream()
             .collect(Collectors.groupingBy(Workout::getType, Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
@@ -122,6 +111,7 @@ public class AnalyticsService {
             calculateMaxDurationInWorkout(workouts)
         );
     }
+
     private Map<String, Integer> calculateMaxWeightByExercise(List<Workout> workouts) {
         Map<String, Integer> maxWeights = new HashMap<>();
         
@@ -156,7 +146,7 @@ public class AnalyticsService {
             }
             
             for (WorkoutExercise workoutExercise : workout.getWorkoutExercises()) {
-                if ( workoutExercise.getDistance() == null) {
+                if (workoutExercise.getDistance() == null) {
                     continue;
                 }
                 
@@ -196,19 +186,21 @@ public class AnalyticsService {
         
         return maxTimes;
     }
-    
-    private Integer calculateMaxCaloriesBurnedInWorkout(List<Workout> workouts) {
+
+    private int calculateMaxCaloriesBurnedInWorkout(List<Workout> workouts) {
         return workouts.stream()
+            .filter(w -> w.getCalories() != null)
             .map(Workout::getCalories)
             .max(Integer::compare)
             .orElse(0);
     }
-    private Integer calculateMaxDurationInWorkout(List<Workout> workouts) {
+
+    private int calculateMaxDurationInWorkout(List<Workout> workouts) {
         return workouts.stream()
+            .filter(w -> w.getDuration() != null)
             .map(Workout::getDuration)
             .max(Integer::compare)
             .orElse(0);
     }
-    
 }
 

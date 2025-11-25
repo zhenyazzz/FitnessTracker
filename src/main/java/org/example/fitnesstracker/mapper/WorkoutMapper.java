@@ -52,7 +52,6 @@ public interface WorkoutMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "workoutExercises", ignore = true)
     void updateEntityFromRequest(UpdateWorkoutRequest request, @MappingTarget Workout workout);
     
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

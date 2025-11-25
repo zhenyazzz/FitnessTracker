@@ -4,6 +4,8 @@ import org.example.fitnesstracker.service.MediaService;
 import org.example.fitnesstracker.repository.MediaRepository;
 import org.example.fitnesstracker.dto.response.MediaResponse;
 import org.example.fitnesstracker.dto.request.media.MediaRequest;
+import org.example.fitnesstracker.dto.request.media.MediaFilterDto;
+import org.example.fitnesstracker.dto.request.DateFilterDto;
 import org.example.fitnesstracker.mapper.MediaMapper;
 import org.example.fitnesstracker.security.SecurityUtils;
 import org.example.fitnesstracker.repository.UserRepository;
@@ -20,12 +22,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -35,7 +39,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,9 +57,6 @@ class MediaServiceTest {
     private MediaMapper mediaMapper;
 
     @Mock
-    private SecurityUtils securityUtils;
-
-    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -64,6 +65,7 @@ class MediaServiceTest {
     @Mock
     private MultipartFile multipartFile;
 
+    private MockedStatic<SecurityUtils> mockedSecurityUtils;
     private User testUser;
     private Media testMedia;
     private MediaRequest testMediaRequest;
@@ -76,8 +78,8 @@ class MediaServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Mock SecurityUtils to return test user ID
-        lenient().when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
+        mockedSecurityUtils = mockStatic(SecurityUtils.class);
+        mockedSecurityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(TEST_USER_ID);
         
         testUser = User.builder()
             .id(TEST_USER_ID)
@@ -98,6 +100,13 @@ class MediaServiceTest {
         testMediaRequest = new MediaRequest("test note");
     }
 
+    @AfterEach
+    void tearDown() {
+        if (mockedSecurityUtils != null) {
+            mockedSecurityUtils.close();
+        }
+    }
+
     @Test
     @DisplayName("Should get all media successfully")
     void should_GetAllMedia_Successfully() throws Exception {
@@ -114,15 +123,15 @@ class MediaServiceTest {
             testMedia.getCreatedAt()
         );
 
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(mediaRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(mediaPage);
         when(minioService.generateFileUrl(TEST_FILE_PATH)).thenReturn(TEST_FILE_URL);
         when(mediaMapper.toResponse(testMedia, TEST_FILE_URL)).thenReturn(mediaResponse);
 
         // Act
         Page<MediaResponse> result = mediaService.getAllMedia(
-            null, null, null, null, 0, 10
+            new MediaFilterDto(new DateFilterDto(null, null)), pageable
         );
+        
 
         // Assert
         assertThat(result).isNotNull();
@@ -138,7 +147,7 @@ class MediaServiceTest {
         assertThat(response.fileSize()).isEqualTo(TEST_FILE_SIZE);
         assertThat(response.mimeType()).isEqualTo(TEST_CONTENT_TYPE);
         
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(mediaRepository).findAll(any(Specification.class), any(Pageable.class));
         verify(minioService).generateFileUrl(TEST_FILE_PATH);
         verify(mediaMapper).toResponse(testMedia, TEST_FILE_URL);
@@ -158,7 +167,6 @@ class MediaServiceTest {
             LocalDateTime.now()
         );
         
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID))
             .thenReturn(Optional.of(testMedia));
         when(minioService.generateFileUrl(testMedia.getPath())).thenReturn(expectedUrl);
@@ -175,7 +183,7 @@ class MediaServiceTest {
         assertThat(result.fileSize()).isEqualTo(100L);
         assertThat(result.mimeType()).isEqualTo("image/jpeg");
         
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService).generateFileUrl(testMedia.getPath());
         verify(mediaMapper).toResponse(testMedia, expectedUrl);
@@ -185,7 +193,6 @@ class MediaServiceTest {
     @DisplayName("Should throw MediaNotFoundException when media not found")
     void should_ThrowMediaNotFoundException_WhenMediaNotFound() throws Exception {
         // Arrange
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID))
             .thenReturn(Optional.empty());
 
@@ -194,7 +201,7 @@ class MediaServiceTest {
             .isInstanceOf(MediaNotFoundException.class)
             .hasMessageContaining("Media not found with id: " + TEST_MEDIA_ID);
         
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService, never()).generateFileUrl(any());
         verify(mediaMapper, never()).toResponse(any(), any());
@@ -214,7 +221,6 @@ class MediaServiceTest {
             LocalDateTime.now()
         );
 
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(testUser));
         when(multipartFile.isEmpty()).thenReturn(false);
         when(multipartFile.getSize()).thenReturn(TEST_FILE_SIZE);
@@ -237,7 +243,7 @@ class MediaServiceTest {
         assertThat(result.fileSize()).isEqualTo(TEST_FILE_SIZE);
         assertThat(result.mimeType()).isEqualTo(TEST_CONTENT_TYPE);
 
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(multipartFile).isEmpty();
         verify(minioService).uploadFile(multipartFile);
@@ -251,7 +257,6 @@ class MediaServiceTest {
     @DisplayName("Should throw IllegalArgumentException when file is empty")
     void should_ThrowIllegalArgumentException_WhenFileIsEmpty() {
         // Arrange
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(testUser));
         when(multipartFile.isEmpty()).thenReturn(true);
 
@@ -260,7 +265,7 @@ class MediaServiceTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("File is empty");
 
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(multipartFile).isEmpty();
         verify(minioService, never()).uploadFile(any());
@@ -272,7 +277,6 @@ class MediaServiceTest {
     @DisplayName("Should throw UserNotFoundException when user not found")
     void should_ThrowUserNotFoundException_WhenUserNotFound() {
         // Arrange
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
         when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -280,7 +284,7 @@ class MediaServiceTest {
             .isInstanceOf(UserNotFoundException.class)
             .hasMessageContaining("User not found with id: " + TEST_USER_ID);
 
-        verify(securityUtils).getCurrentUserId();
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
         verify(userRepository).findById(TEST_USER_ID);
         verify(multipartFile, never()).isEmpty();
         verify(minioService, never()).uploadFile(any());
@@ -292,15 +296,14 @@ class MediaServiceTest {
     @DisplayName("Should delete media successfully")
     void should_DeleteMedia_Successfully() throws Exception {
         // Arrange
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.of(testMedia));
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.of(testMedia));
 
         // Act
         mediaService.deleteMedia(TEST_MEDIA_ID);
 
         // Assert
-        verify(securityUtils).getCurrentUserId();
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService).deleteFile(testMedia.getPath());
         verify(mediaRepository).delete(testMedia);
     }
@@ -309,16 +312,15 @@ class MediaServiceTest {
     @DisplayName("Should throw MediaNotFoundException when media not found")
     void should_ThrowMediaNotFoundException_WhenMediaNotFoundToDelete() throws Exception {
         // Arrange
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.empty());
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> mediaService.deleteMedia(TEST_MEDIA_ID))
             .isInstanceOf(MediaNotFoundException.class)
             .hasMessageContaining("Media not found with id: " + TEST_MEDIA_ID);
 
-        verify(securityUtils).getCurrentUserId();
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService, never()).deleteFile(any());
         verify(mediaRepository, never()).delete(any(Media.class));
     }
@@ -344,16 +346,15 @@ class MediaServiceTest {
             .createdAt(LocalDateTime.now())
             .build();
 
-        when(securityUtils.getCurrentUserId()).thenReturn(TEST_USER_ID);
-        when(mediaRepository.findById(TEST_MEDIA_ID)).thenReturn(Optional.of(mediaBelongingToOtherUser));
+        when(mediaRepository.findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID)).thenReturn(Optional.of(mediaBelongingToOtherUser));
 
         // Act & Assert
         assertThatThrownBy(() -> mediaService.deleteMedia(TEST_MEDIA_ID))
             .isInstanceOf(AccessDeniedException.class)
             .hasMessageContaining("You can only delete your own media");
 
-        verify(securityUtils).getCurrentUserId();
-        verify(mediaRepository).findById(TEST_MEDIA_ID);
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
+        verify(mediaRepository).findByIdAndUserId(TEST_MEDIA_ID, TEST_USER_ID);
         verify(minioService, never()).deleteFile(any());
         verify(mediaRepository, never()).delete(any(Media.class));
     }

@@ -7,13 +7,9 @@ import org.example.fitnesstracker.model.enums.WorkoutType;
 
 public record AnalyticsResponse(
     Long totalWorkouts,
-    Long workoutsInPeriod,
     Double totalWeightLifted,
-    Double totalWeightLiftedInPeriod,
     Integer totalCaloriesBurned,
-    Integer totalCaloriesBurnedInPeriod,
     Integer totalDuration,
-    Integer totalDurationInPeriod,
     LocalDate periodStart,
     LocalDate periodEnd,
 

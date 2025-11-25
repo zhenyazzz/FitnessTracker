@@ -2,11 +2,12 @@ package org.example.fitnesstracker.dto.request.workouts;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
 
 public record UpdateWorkoutExerciseRequest(
-    @NotNull(message = "Exercise ID is required")
-    Long workoutExerciseId,
+
+    Long existingExerciseId,
+    
+    Long newExerciseId,
     
     @Min(value = 1, message = "Sets must be at least 1")
     Integer sets,
