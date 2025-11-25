@@ -408,7 +408,163 @@ public interface WorkoutsControllerApi {
     })
     ResponseEntity<Void> deleteWorkout(@PathVariable Long id);
 
+    @Operation(
+        summary = "Добавление упражнения в тренировку",
+        description = "Добавляет новое упражнение в существующую тренировку. Упражнение должно существовать в системе.",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @Parameter(name = "id", description = "ID тренировки", required = true, example = "1")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+        description = "Данные для добавления упражнения в тренировку",
+        required = true,
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = CreateWorkoutExerciseRequest.class),
+            examples = @ExampleObject(
+                name = "Пример запроса",
+                value = "{\n  \"exerciseId\": 1,\n  \"sets\": 4,\n  \"reps\": 12,\n  \"weight\": 80.0,\n  \"distance\": null,\n  \"time\": null\n}"
+            )
+        )
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Упражнение успешно добавлено в тренировку",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = WorkoutResponse.class),
+                examples = @ExampleObject(
+                    name = "Успешный ответ",
+                    value = "{\n  \"id\": 1,\n  \"name\": \"Утренняя тренировка\",\n  \"type\": \"STRENGTH\",\n  \"date\": \"2024-12-15\",\n  \"duration\": 60,\n  \"calories\": 350,\n  \"createdAt\": \"2024-12-15T10:00:00\",\n  \"exercises\": [\n    {\n      \"id\": 1,\n      \"exerciseId\": 1,\n      \"exerciseName\": \"Жим лежа\",\n      \"muscleGroup\": \"CHEST\",\n      \"sets\": 4,\n      \"reps\": 12,\n      \"weight\": 80.0,\n      \"distance\": null,\n      \"time\": null\n    },\n    {\n      \"id\": 2,\n      \"exerciseId\": 2,\n      \"exerciseName\": \"Приседания\",\n      \"muscleGroup\": \"LEGS\",\n      \"sets\": 3,\n      \"reps\": 15,\n      \"weight\": 100.0,\n      \"distance\": null,\n      \"time\": null\n    }\n  ]\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Ошибка валидации данных",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Ошибка валидации",
+                    value = "{\n  \"message\": \"sets: Sets must be at least 1, reps: Reps must be at least 1\",\n  \"status\": 400,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Пользователь не аутентифицирован",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Не авторизован",
+                    value = "{\n  \"message\": \"Unauthorized\",\n  \"status\": 401,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Доступ запрещен. Можно добавлять упражнения только в свои тренировки",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Доступ запрещен",
+                    value = "{\n  \"message\": \"You can only modify your own workouts\",\n  \"status\": 403,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Тренировка или упражнение не найдены",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Тренировка не найдена",
+                    value = "{\n  \"message\": \"Workout with id 1 not found\",\n  \"status\": 404,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Внутренняя ошибка",
+                    value = "{\n  \"message\": \"Internal server error\",\n  \"status\": 500,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        )
+    })
     ResponseEntity<WorkoutResponse> addExerciseToWorkout(@PathVariable Long id, @Valid @RequestBody CreateWorkoutExerciseRequest request);
 
+    @Operation(
+        summary = "Удаление упражнения из тренировки",
+        description = "Удаляет упражнение из тренировки по ID упражнения в тренировке (workoutExerciseId).",
+        security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @Parameters({
+        @Parameter(name = "id", description = "ID тренировки", required = true, example = "1"),
+        @Parameter(name = "exerciseId", description = "ID упражнения в тренировке (workoutExerciseId)", required = true, example = "1")
+    })
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "204",
+            description = "Упражнение успешно удалено из тренировки",
+            content = @Content
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Пользователь не аутентифицирован",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Не авторизован",
+                    value = "{\n  \"message\": \"Unauthorized\",\n  \"status\": 401,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "403",
+            description = "Доступ запрещен. Можно удалять упражнения только из своих тренировок",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Доступ запрещен",
+                    value = "{\n  \"message\": \"You can only modify your own workouts\",\n  \"status\": 403,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Тренировка или упражнение не найдены",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Упражнение не найдено",
+                    value = "{\n  \"message\": \"Workout exercise with id 1 not found\",\n  \"status\": 404,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Внутренняя ошибка сервера",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ErrorResponse.class),
+                examples = @ExampleObject(
+                    name = "Внутренняя ошибка",
+                    value = "{\n  \"message\": \"Internal server error\",\n  \"status\": 500,\n  \"timestamp\": \"2025-11-17T18:00:00\"\n}"
+                )
+            )
+        )
+    })
     ResponseEntity<Void> removeExerciseFromWorkout(@PathVariable Long id, @PathVariable Long exerciseId);
 }

@@ -3,13 +3,11 @@ package org.example.fitnesstracker.unit.service;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutRequest;
 import org.example.fitnesstracker.dto.request.workouts.CreateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutRequest;
-import org.example.fitnesstracker.dto.request.workouts.UpdateWorkoutExerciseRequest;
 import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.dto.request.DateFilterDto;
 import org.example.fitnesstracker.dto.request.DurationFilterDto;
 import org.example.fitnesstracker.dto.request.CaloriesFilterDto;
 import org.example.fitnesstracker.dto.response.workouts.WorkoutResponse;
-import org.example.fitnesstracker.exception.AccessDeniedException;
 import org.example.fitnesstracker.exception.ExerciseNotFoundException;
 import org.example.fitnesstracker.exception.UserNotFoundException;
 import org.example.fitnesstracker.exception.WorkoutNotFoundException;
@@ -341,8 +339,7 @@ class WorkoutsServiceTest {
             WorkoutType.CARDIO,
             LocalDate.now().minusDays(1),
             75,
-            450,
-            null
+            450
         );
 
         Workout updatedWorkout = Workout.builder()
@@ -367,7 +364,7 @@ class WorkoutsServiceTest {
             Collections.emptyList()
         );
 
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(testWorkout));
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
         doNothing().when(workoutMapper).updateEntityFromRequest(request, testWorkout);
         when(workoutsRepository.save(testWorkout)).thenReturn(updatedWorkout);
         when(workoutMapper.toResponse(updatedWorkout)).thenReturn(expectedResponse);
@@ -383,7 +380,7 @@ class WorkoutsServiceTest {
         assertThat(result.duration()).isEqualTo(75);
         
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper).updateEntityFromRequest(request, testWorkout);
         verify(workoutsRepository).save(testWorkout);
         verify(workoutMapper).toResponse(updatedWorkout);
@@ -410,10 +407,7 @@ class WorkoutsServiceTest {
             WorkoutType.STRENGTH,
             LocalDate.now(),
             90,
-            500,
-            List.of(
-                new UpdateWorkoutExerciseRequest(workoutExerciseId, 5, 10, 85.0, null, null)
-            )
+            500
         );
 
         Workout updatedWorkout = Workout.builder()
@@ -438,9 +432,8 @@ class WorkoutsServiceTest {
             Collections.emptyList()
         );
 
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(testWorkout));
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
         doNothing().when(workoutMapper).updateEntityFromRequest(request, testWorkout);
-        doNothing().when(workoutMapper).updateExerciseFromRequest(any(UpdateWorkoutExerciseRequest.class), any(WorkoutExercise.class));
         when(workoutsRepository.save(testWorkout)).thenReturn(updatedWorkout);
         when(workoutMapper.toResponse(updatedWorkout)).thenReturn(expectedResponse);
 
@@ -453,9 +446,8 @@ class WorkoutsServiceTest {
         assertThat(result.name()).isEqualTo("Обновленная тренировка");
         
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper).updateEntityFromRequest(request, testWorkout);
-        verify(workoutMapper).updateExerciseFromRequest(any(UpdateWorkoutExerciseRequest.class), any(WorkoutExercise.class));
         verify(workoutsRepository).save(testWorkout);
         verify(workoutMapper).toResponse(updatedWorkout);
     }
@@ -469,11 +461,10 @@ class WorkoutsServiceTest {
             WorkoutType.STRENGTH,
             LocalDate.now(),
             75,
-            450,
-            null
+            450
         );
 
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.empty());
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> workoutsService.updateWorkout(TEST_WORKOUT_ID, request))
@@ -481,50 +472,7 @@ class WorkoutsServiceTest {
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
-        verify(workoutMapper, never()).updateEntityFromRequest(any(), any());
-        verify(workoutsRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Should throw AccessDeniedException when user tries to update another user's workout")
-    void should_ThrowAccessDeniedException_WhenUpdatingAnotherUsersWorkout() {
-        // Arrange
-        User anotherUser = User.builder()
-            .id(2L)
-            .email("another@example.com")
-            .username("anotheruser")
-            .build();
-        
-        Workout anotherUserWorkout = Workout.builder()
-            .id(TEST_WORKOUT_ID)
-            .name("Чужая тренировка")
-            .type(WorkoutType.STRENGTH)
-            .date(LocalDate.now())
-            .duration(60)
-            .calories(350)
-            .user(anotherUser)
-            .workoutExercises(new ArrayList<>())
-            .build();
-
-        UpdateWorkoutRequest request = new UpdateWorkoutRequest(
-            "Обновленная тренировка",
-            WorkoutType.STRENGTH,
-            LocalDate.now(),
-            75,
-            450,
-            null
-        );
-
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(anotherUserWorkout));
-
-        // Act & Assert
-        assertThatThrownBy(() -> workoutsService.updateWorkout(TEST_WORKOUT_ID, request))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("You can only update your own workouts");
-        
-        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutMapper, never()).updateEntityFromRequest(any(), any());
         verify(workoutsRepository, never()).save(any());
     }
@@ -533,7 +481,7 @@ class WorkoutsServiceTest {
     @DisplayName("Should delete workout successfully")
     void should_DeleteWorkout_Successfully() {
         // Arrange
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(testWorkout));
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
         doNothing().when(workoutsRepository).delete(testWorkout);
 
         // Act
@@ -541,7 +489,7 @@ class WorkoutsServiceTest {
 
         // Assert
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutsRepository).delete(testWorkout);
     }
 
@@ -549,7 +497,7 @@ class WorkoutsServiceTest {
     @DisplayName("Should throw exception when workout not found during deletion")
     void should_ThrowException_WhenWorkoutNotFound_DuringDeletion() {
         // Arrange
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.empty());
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThatThrownBy(() -> workoutsService.deleteWorkout(TEST_WORKOUT_ID))
@@ -557,41 +505,107 @@ class WorkoutsServiceTest {
             .hasMessageContaining("Workout with id " + TEST_WORKOUT_ID + " not found");
         
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
         verify(workoutsRepository, never()).delete(any(Workout.class));
     }
 
     @Test
-    @DisplayName("Should throw AccessDeniedException when user tries to delete another user's workout")
-    void should_ThrowAccessDeniedException_WhenDeletingAnotherUsersWorkout() {
+    @DisplayName("Should add exercise to workout successfully")
+    void should_AddExerciseToWorkout_Successfully() {
         // Arrange
-        User anotherUser = User.builder()
-            .id(2L)
-            .email("another@example.com")
-            .username("anotheruser")
+        CreateWorkoutExerciseRequest request = new CreateWorkoutExerciseRequest(
+            TEST_EXERCISE_ID, 4, 12, 80.0, null, null
+        );
+
+        WorkoutExercise workoutExercise = WorkoutExercise.builder()
+            .id(1L)
+            .workout(testWorkout)
+            .exercise(testExercise)
+            .sets(4)
+            .reps(12)
+            .weight(80.0)
             .build();
-        
-        Workout anotherUserWorkout = Workout.builder()
+
+        Workout savedWorkout = Workout.builder()
             .id(TEST_WORKOUT_ID)
-            .name("Чужая тренировка")
-            .type(WorkoutType.STRENGTH)
-            .date(LocalDate.now())
-            .duration(60)
-            .calories(350)
-            .user(anotherUser)
+            .name(testWorkout.getName())
+            .type(testWorkout.getType())
+            .date(testWorkout.getDate())
+            .duration(testWorkout.getDuration())
+            .calories(testWorkout.getCalories())
+            .user(testUser)
+            .workoutExercises(new ArrayList<>(List.of(workoutExercise)))
+            .build();
+
+        WorkoutResponse expectedResponse = new WorkoutResponse(
+            TEST_WORKOUT_ID,
+            testWorkout.getName(),
+            testWorkout.getType(),
+            testWorkout.getDate(),
+            testWorkout.getDuration(),
+            testWorkout.getCalories(),
+            null,
+            Collections.emptyList()
+        );
+
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
+        when(exerciseRepository.findById(TEST_EXERCISE_ID)).thenReturn(Optional.of(testExercise));
+        when(workoutMapper.toEntity(request)).thenReturn(workoutExercise);
+        when(workoutsRepository.save(testWorkout)).thenReturn(savedWorkout);
+        when(workoutMapper.toResponse(savedWorkout)).thenReturn(expectedResponse);
+
+        // Act
+        WorkoutResponse result = workoutsService.addExerciseToWorkout(TEST_WORKOUT_ID, request);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.id()).isEqualTo(TEST_WORKOUT_ID);
+        
+        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
+        verify(exerciseRepository).findById(TEST_EXERCISE_ID);
+        verify(workoutMapper).toEntity(request);
+        verify(workoutsRepository).save(testWorkout);
+        verify(workoutMapper).toResponse(savedWorkout);
+    }
+
+    @Test
+    @DisplayName("Should remove exercise from workout successfully")
+    void should_RemoveExerciseFromWorkout_Successfully() {
+        // Arrange
+        Long workoutExerciseId = 1L;
+        WorkoutExercise workoutExercise = WorkoutExercise.builder()
+            .id(workoutExerciseId)
+            .workout(testWorkout)
+            .exercise(testExercise)
+            .sets(4)
+            .reps(12)
+            .weight(80.0)
+            .build();
+
+        testWorkout.setWorkoutExercises(new ArrayList<>(List.of(workoutExercise)));
+
+        Workout savedWorkout = Workout.builder()
+            .id(TEST_WORKOUT_ID)
+            .name(testWorkout.getName())
+            .type(testWorkout.getType())
+            .date(testWorkout.getDate())
+            .duration(testWorkout.getDuration())
+            .calories(testWorkout.getCalories())
+            .user(testUser)
             .workoutExercises(new ArrayList<>())
             .build();
 
-        when(workoutsRepository.findById(TEST_WORKOUT_ID)).thenReturn(Optional.of(anotherUserWorkout));
+        when(workoutsRepository.findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID)).thenReturn(Optional.of(testWorkout));
+        when(workoutsRepository.save(testWorkout)).thenReturn(savedWorkout);
 
-        // Act & Assert
-        assertThatThrownBy(() -> workoutsService.deleteWorkout(TEST_WORKOUT_ID))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("You can only delete your own workouts");
-        
+        // Act
+        workoutsService.removeExerciseFromWorkout(TEST_WORKOUT_ID, workoutExerciseId);
+
+        // Assert
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(workoutsRepository).findById(TEST_WORKOUT_ID);
-        verify(workoutsRepository, never()).delete(any(Workout.class));
+        verify(workoutsRepository).findByIdAndUserId(TEST_WORKOUT_ID, TEST_USER_ID);
+        verify(workoutsRepository).save(testWorkout);
     }
 
 }

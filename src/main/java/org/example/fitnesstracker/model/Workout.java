@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +37,7 @@ import jakarta.persistence.Index;
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
 @Entity
+@Builder
 @Table(name = "workouts", indexes = {
     @Index(name = "idx_workout_date", columnList = "date"),
     @Index(name = "idx_workout_type", columnList = "type")
