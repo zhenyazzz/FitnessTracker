@@ -23,8 +23,9 @@ public interface AnalyticsControllerApi {
     
     @Operation(
         summary = "Получение аналитики тренировок",
-        description = "Возвращает статистику по тренировкам: общее количество тренировок, поднятый вес, сожженные калории, длительность. " +
-                      "Можно указать период для получения статистики за определенный промежуток времени.",
+        description = "Возвращает статистику по тренировкам: количество тренировок, поднятый вес, сожженные калории, длительность. " +
+                      "Можно указать период для получения статистики за определенный промежуток времени. " +
+                      "Если период не указан, анализируются все тренировки пользователя.",
         security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -49,20 +50,16 @@ public interface AnalyticsControllerApi {
                 examples = @ExampleObject(
                     name = "Успешный ответ",
                     value = "{\n" +
-                            "  \"totalWorkouts\": 25,\n" +
-                            "  \"workoutsInPeriod\": 10,\n" +
-                            "  \"totalWeightLifted\": 12500.5,\n" +
-                            "  \"totalWeightLiftedInPeriod\": 4500.0,\n" +
-                            "  \"totalCaloriesBurned\": 8500,\n" +
-                            "  \"totalCaloriesBurnedInPeriod\": 3200,\n" +
-                            "  \"totalDuration\": 1500,\n" +
-                            "  \"totalDurationInPeriod\": 600,\n" +
+                            "  \"totalWorkouts\": 10,\n" +
+                            "  \"totalWeightLifted\": 4500.0,\n" +
+                            "  \"totalCaloriesBurned\": 3200,\n" +
+                            "  \"totalDuration\": 600,\n" +
                             "  \"periodStart\": \"2024-12-01\",\n" +
                             "  \"periodEnd\": \"2024-12-31\",\n" +
                             "  \"workoutsByType\": {\n" +
-                            "    \"STRENGTH\": 15,\n" +
-                            "    \"CARDIO\": 8,\n" +
-                            "    \"YOGA\": 2\n" +
+                            "    \"STRENGTH\": 6,\n" +
+                            "    \"CARDIO\": 3,\n" +
+                            "    \"YOGA\": 1\n" +
                             "  },\n" +
                             "  \"maxAchievements\": {\n" +
                             "    \"maxWeightByExercise\": {\n" +
