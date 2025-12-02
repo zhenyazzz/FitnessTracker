@@ -23,3 +23,12 @@ springdoc:
     tags-sorter: alpha
     try-it-out-enabled: true
   show-actuator: false
+
+logging:
+  level:
+    root: WARN                 
+    org.springframework: WARN  
+    org.hibernate: WARN        
+    org.example.fitnesstracker: INFO
+  pattern:
+    console: "%msg%n"  

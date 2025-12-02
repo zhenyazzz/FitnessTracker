@@ -6,5 +6,4 @@ import org.example.fitnesstracker.model.WorkoutExercise;
 
 @Repository
 public interface WorkoutExerciseRepository extends JpaRepository<WorkoutExercise, Long> {
-
 }

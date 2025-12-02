@@ -26,7 +26,6 @@ public class AnalyticsController implements AnalyticsControllerApi {
     @Override
     public ResponseEntity<AnalyticsResponse> getAnalytics(
         @Valid @RequestBody AnalyticsRequest request) {
-        log.debug("Getting analytics with dateFilter: {}", request.dateFilter());
     
         return ResponseEntity.ok(analyticsService.getAnalytics(request));
     }

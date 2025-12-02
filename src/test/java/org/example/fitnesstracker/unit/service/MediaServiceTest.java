@@ -257,7 +257,6 @@ class MediaServiceTest {
     @DisplayName("Should throw IllegalArgumentException when file is empty")
     void should_ThrowIllegalArgumentException_WhenFileIsEmpty() {
         // Arrange
-        when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(testUser));
         when(multipartFile.isEmpty()).thenReturn(true);
 
         // Act & Assert
@@ -265,9 +264,8 @@ class MediaServiceTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("File is empty");
 
-        mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
-        verify(userRepository).findById(TEST_USER_ID);
         verify(multipartFile).isEmpty();
+        verify(userRepository, never()).findById(any());
         verify(minioService, never()).uploadFile(any());
         verify(mediaMapper, never()).toEntity(any(), any(), any(), any(), any());
         verify(mediaRepository, never()).save(any());
@@ -277,6 +275,7 @@ class MediaServiceTest {
     @DisplayName("Should throw UserNotFoundException when user not found")
     void should_ThrowUserNotFoundException_WhenUserNotFound() {
         // Arrange
+        when(multipartFile.isEmpty()).thenReturn(false);
         when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.empty());
 
         // Act & Assert
@@ -285,8 +284,8 @@ class MediaServiceTest {
             .hasMessageContaining("User not found with id: " + TEST_USER_ID);
 
         mockedSecurityUtils.verify(SecurityUtils::getCurrentUserId);
+        verify(multipartFile).isEmpty();
         verify(userRepository).findById(TEST_USER_ID);
-        verify(multipartFile, never()).isEmpty();
         verify(minioService, never()).uploadFile(any());
         verify(mediaMapper, never()).toEntity(any(), any(), any(), any(), any());
         verify(mediaRepository, never()).save(any());

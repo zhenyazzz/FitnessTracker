@@ -2,8 +2,11 @@ package org.example.fitnesstracker.repository.specification;
 
 import java.time.LocalDate;
 
+import org.example.fitnesstracker.dto.request.analytics.AnalyticsRequest;
+import org.example.fitnesstracker.dto.request.workouts.WorkoutFilterDto;
 import org.example.fitnesstracker.model.Workout;
 import org.example.fitnesstracker.model.enums.WorkoutType;
+import org.example.fitnesstracker.security.SecurityUtils;
 import org.springframework.data.jpa.domain.Specification;
 
 public class WorkoutSpecifications {
@@ -48,4 +51,46 @@ public class WorkoutSpecifications {
             caloriesTo == null ? null : criteriaBuilder.lessThanOrEqualTo(root.get("calories"), caloriesTo);
     }
 
+    public static Specification<Workout> buildSpecification(WorkoutFilterDto filter) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        Specification<Workout> specification = belongsToUser(currentUserId);
+        
+        if (filter != null) {
+            if (filter.type() != null) {
+                specification = specification.and(hasType(filter.type()));
+            }
+            
+            if (filter.dateFilter() != null) {
+                specification = specification
+                    .and(hasDateFrom(filter.dateFilter().dateFrom()))
+                    .and(hasDateTo(filter.dateFilter().dateTo()));
+            }
+            
+            if (filter.durationFilter() != null) {
+                specification = specification
+                    .and(hasDurationFrom(filter.durationFilter().durationFrom()))
+                    .and(hasDurationTo(filter.durationFilter().durationTo()));
+            }
+            
+            if (filter.caloriesFilter() != null) {
+                specification = specification
+                    .and(hasCaloriesFrom(filter.caloriesFilter().caloriesFrom()))
+                    .and(hasCaloriesTo(filter.caloriesFilter().caloriesTo()));
+            }
+        }
+        
+        return specification;
+    }
+
+    public static Specification<Workout> buildWorkoutsInPeriodSpecification(AnalyticsRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Specification<Workout> periodSpec = belongsToUser(currentUserId);
+        if (request != null && request.dateFilter() != null) {
+            periodSpec = periodSpec
+                .and(hasDateFrom(request.dateFilter().dateFrom()))
+                .and(hasDateTo(request.dateFilter().dateTo()));
+        }
+        return periodSpec;
+    }
 }

@@ -37,7 +37,7 @@ public class MediaService {
         MediaFilterDto filter,
         Pageable pageable
     ) {
-        Specification<Media> specification = buildSpecification(filter);
+        Specification<Media> specification = MediaSpecifications.buildSpecification(filter);
 
         Page<Media> mediaPage = mediaRepository.findAll(specification, pageable);
         return mediaPage.map(media -> {
@@ -46,17 +46,7 @@ public class MediaService {
         });
     }
 
-    private Specification<Media> buildSpecification(MediaFilterDto filter) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        Specification<Media> specification = MediaSpecifications.belongsToUser(currentUserId);
-        
-        if (filter != null && filter.dateFilter() != null) {
-            specification = specification
-                .and(MediaSpecifications.hasDateFrom(filter.dateFilter().dateFrom()))
-                .and(MediaSpecifications.hasDateTo(filter.dateFilter().dateTo()));
-        }
-        return specification;
-    }
+    
 
     @Transactional(readOnly = true)
     public MediaResponse getMediaById(Long id) {
@@ -69,14 +59,16 @@ public class MediaService {
 
     @Transactional
     public MediaResponse createMedia(MediaRequest request, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty");
+        }
+        if (request.note() != null && request.note().length() > 500) {
+            throw new IllegalArgumentException("Note cannot exceed 500 characters");
+        }
         Long currentUserId = SecurityUtils.getCurrentUserId();
 
         User user = userRepository.findById(currentUserId)
             .orElseThrow(() -> new UserNotFoundException("User not found with id: " + currentUserId));
-
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
-        }
 
         String path = minioService.uploadFile(file);
 

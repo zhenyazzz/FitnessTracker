@@ -27,31 +27,25 @@ public class AuthController implements AuthControllerApi {
     @PostMapping("/register")
     @Override
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        log.debug("Registering user with email: {}", request.email());
         return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
     @Override
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.debug("Logging in user with email: {}", request.email());
         return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping("/refresh")
     @Override
     public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        log.debug("Refreshing token for user with email: {}", request.refreshToken());
         return ResponseEntity.ok(authService.refreshToken(request));
     }
 
     @PostMapping("/logout")
     @Override
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
-        log.debug("Logging out user with refresh token: {}", request.refreshToken());
         authService.logout(request);
-        
-        log.debug("User logged out successfully with refresh token: {}", request.refreshToken());
         return ResponseEntity.noContent().build();
     }
 

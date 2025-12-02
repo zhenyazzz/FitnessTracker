@@ -39,19 +39,15 @@ public class MediaController implements MediaControllerApi {
         @Valid @RequestBody MediaFilterDto filter,
         @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        log.debug("Request to get all media with filters: {}", filter);
         Page<MediaResponse> result = mediaService.getAllMedia(filter, pageable);
-        log.info("Successfully retrieved {} media items (page {}, total: {})", 
-            result.getContent().size(), pageable.getPageNumber(), result.getTotalElements());
+        
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{id}")
     @Override
     public ResponseEntity<MediaResponse> getMediaById(@PathVariable Long id) {
-        log.debug("Request to get media by id: {}", id);
         MediaResponse result = mediaService.getMediaById(id);
-        log.info("Successfully retrieved media with id: {}", id);
         return ResponseEntity.ok(result);
     }
 
@@ -61,29 +57,15 @@ public class MediaController implements MediaControllerApi {
         @RequestPart(value = "note", required = false) String note,
         @RequestPart("file") @NotNull(message = "File is required") MultipartFile file) {
         
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("File is required and cannot be empty");
-        }
-        
-        if (note != null && note.length() > 500) {
-            throw new IllegalArgumentException("Note cannot exceed 500 characters");
-        }
-        
         MediaRequest request = new MediaRequest(note);
-        log.debug("Request to create media: filename={}, size={}, contentType={}, note={}", 
-            file.getOriginalFilename(), file.getSize(), file.getContentType(), note);
         MediaResponse result = mediaService.createMedia(request, file);
-        log.info("Successfully created media with id: {}, filename: {}", 
-            result.id(), file.getOriginalFilename());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @DeleteMapping("/{id}")
     @Override
     public ResponseEntity<Void> deleteMedia(@PathVariable Long id) {
-        log.debug("Request to delete media with id: {}", id);
         mediaService.deleteMedia(id);
-        log.info("Successfully deleted media with id: {}", id);
         return ResponseEntity.noContent().build();
     }
 

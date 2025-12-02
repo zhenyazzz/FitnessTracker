@@ -39,64 +39,49 @@ public class WorkoutsController implements WorkoutsControllerApi {
         @Valid @RequestBody WorkoutFilterDto filter,
         @PageableDefault(size = 10, sort = "date", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        log.debug("Getting workouts with filters: {}", filter);
         Page<WorkoutResponse> result = workoutsService.getAllWorkouts(filter, pageable);
-        log.info("Successfully retrieved {} workouts (page {}, total: {})", 
-            result.getContent().size(), pageable.getPageNumber(), result.getTotalElements());
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{id}")
     @Override
     public ResponseEntity<WorkoutResponse> getWorkoutById(@PathVariable Long id) {
-        log.debug("Getting workout by id: {}", id);
         WorkoutResponse result = workoutsService.getWorkoutById(id);
-        log.info("Successfully retrieved workout with id: {}", id);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping
     @Override
     public ResponseEntity<WorkoutResponse> createWorkout(@Valid @RequestBody CreateWorkoutRequest request) {
-        log.debug("Creating workout: name={}, type={}, date={}", request.name(), request.type(), request.date());
         WorkoutResponse result = workoutsService.createWorkout(request);
-        log.info("Successfully created workout with id: {}", result.id());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @PutMapping("/{id}")
     @Override
     public ResponseEntity<WorkoutResponse> updateWorkout(@PathVariable Long id, @Valid @RequestBody UpdateWorkoutRequest request) {
-        log.debug("Updating workout with id: {}", id);
         WorkoutResponse result = workoutsService.updateWorkout(id, request);
-        log.info("Successfully updated workout with id: {}", id);
         return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/{id}")
     @Override
     public ResponseEntity<Void> deleteWorkout(@PathVariable Long id) {
-        log.debug("Deleting workout with id: {}", id);
         workoutsService.deleteWorkout(id);
-        log.info("Successfully deleted workout with id: {}", id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/exercises")
     @Override
     public ResponseEntity<WorkoutResponse> addExerciseToWorkout(@PathVariable Long id, @Valid @RequestBody CreateWorkoutExerciseRequest request) {
-        log.debug("Adding exercise to workout with id: {}", id);
         WorkoutResponse result = workoutsService.addExerciseToWorkout(id, request);
-        log.info("Successfully added exercise to workout with id: {}", id);
         return ResponseEntity.ok(result);
     }
     
     @DeleteMapping("/{id}/exercises/{exerciseId}")
     @Override
     public ResponseEntity<Void> removeExerciseFromWorkout(@PathVariable Long id, @PathVariable Long exerciseId) {
-        log.debug("Removing exercise with id: {} from workout with id: {}", exerciseId, id);
         workoutsService.removeExerciseFromWorkout(id, exerciseId);
-        log.info("Successfully removed exercise with id: {} from workout with id: {}", exerciseId, id);
         return ResponseEntity.noContent().build();
     }
 }

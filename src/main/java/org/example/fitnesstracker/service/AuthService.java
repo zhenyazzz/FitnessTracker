@@ -22,12 +22,10 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import jakarta.transaction.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -38,20 +36,12 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Registering user with email: {}", request.email());
-
         if (userRepository.existsByEmail(request.email())) {
-            log.error("User with email {} already exists", request.email());
             throw new EmailAlreadyExistsException("User with email " + request.email() + " already exists");
         }
         
         User user = createAndSaveUser(request);
-
-        log.info("User registered successfully with email: {} and role: {}", request.email(), RoleName.USER);
-
         AuthResponse tokens = generateAndSaveTokens(user);
-
-        log.info("Tokens generated and refresh token saved for user: {}", user.getEmail());
     
         return tokens;
     }
@@ -74,20 +64,14 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        log.info("Attempting login for user with email: {}", request.email());
-        
         User user = userRepository.findByEmail(request.email())
             .orElseThrow(() -> new UsernameNotFoundException("User with email " + request.email() + " not found"));
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            log.error("Login failed: Invalid password for user with email: {}", request.email());
             throw new BadCredentialsException("Invalid password");
         }
         
         refreshTokenRepository.deleteByUser(user);
-
         AuthResponse tokens = generateAndSaveTokens(user);
-
-        log.info("User logged in successfully with email: {}", user.getEmail());
     
         return tokens;        
     }
@@ -107,13 +91,10 @@ public class AuthService {
 
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request) {
-        log.info("Attempting to refresh token");
-        
         RefreshToken stored = refreshTokenRepository.findByToken(request.refreshToken())
             .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token not found. Please login again."));
 
         if (jwtService.isTokenExpired(request.refreshToken())) {
-            log.error("Refresh token expired for user: {}", stored.getUser().getEmail());
             refreshTokenRepository.delete(stored);
             throw new RefreshTokenExpiredException("Refresh token expired. Please login again.");
         }
@@ -127,19 +108,16 @@ public class AuthService {
         stored.setExpiryDate(jwtService.extractExpirationLocal(newRefresh));
 
         refreshTokenRepository.save(stored);
-        log.info("Tokens refreshed successfully for user: {}", user.getEmail());
 
         return new AuthResponse(newAccess, newRefresh);
     }
 
     @Transactional
     public void logout(LogoutRequest request) {
-        log.info("Logging out user with refresh token: {}", request.refreshToken());
         RefreshToken refreshToken = refreshTokenRepository.findByToken(request.refreshToken())
             .orElseThrow(() -> new RefreshTokenNotFoundException("Refresh token " + request.refreshToken() + " not found"));
         
         refreshTokenRepository.delete(refreshToken);
-        log.info("User logged out successfully with refresh token: {}", request.refreshToken());
     }
 
 }
