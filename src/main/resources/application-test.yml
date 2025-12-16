@@ -17,10 +17,7 @@ spring:
     enabled: false
 
 minio:
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket: test-bucket
+  enabled: false
 
 jwt:
   secret: VGVzdFNlY3JldEtleUZvclRlc3RpbmdQdXJwb3Nlc09ubHlWZXJ5TG9uZ0tleVJlcXVpcmVkMjAyNTAxMDEyMzQ1Njc4OTBhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ekFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla
