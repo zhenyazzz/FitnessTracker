@@ -26,11 +26,11 @@ jobs:
       - name: Build Docker image
         run: docker build -t fitness-tracker:ci -f Dockerfile .
       - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/fitness-tracker:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/fitness-tracker:latest .
 
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/fitness-tracker:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/fitness-tracker:latest
   
