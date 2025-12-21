@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fitness-tracker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fitness-tracker
+  template:
+    metadata:
+      labels:
+        app: fitness-tracker
+    spec:
+      containers:
+        - name: fitness-tracker
+          image: zhenya465/fitness-tracker:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://host.docker.internal:5432/fitness_tracker"
+            - name: MINIO_ENDPOINT
+              value: "http://host.docker.internal:9000"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "password"
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fitness-tracker-service
+spec:
+  selector:
+    app: fitness-tracker
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer

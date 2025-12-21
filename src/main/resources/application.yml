@@ -22,7 +22,21 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
     try-it-out-enabled: true
-  show-actuator: false
+  show-actuator: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:

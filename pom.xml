@@ -148,6 +148,16 @@
             <version>${lombok-mapstruct-binding.version}</version>
         </dependency>
 
+        <!-- Actuator and Prometheus -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Minio -->
         <dependency>
             <groupId>io.minio</groupId>

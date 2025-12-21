@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'fitness-tracker'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['fitness-tracker:8080']
+
