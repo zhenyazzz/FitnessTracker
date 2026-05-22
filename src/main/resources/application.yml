@@ -28,21 +28,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,info
-  endpoint:
-    health:
-      show-details: always
-    prometheus:
-      enabled: true
-  metrics:
-    tags:
-      application: ${spring.application.name}
+        include: health, info, metrics, prometheus
+
+  tracing:
+    sampling:
+      probability: 1.0
+
+  otlp:
+    metrics:
+      export:
+        url: http://${OTEL_COLLECTOR_HOST:localhost}:4318/v1/metrics
+        step: 10s
+    tracing:
+      endpoint: http://${OTEL_COLLECTOR_HOST:localhost}:4318/v1/traces
 
 logging:
-  level:
-    root: WARN                 
-    org.springframework: WARN  
-    org.hibernate: WARN        
-    org.example.fitnesstracker: INFO
   pattern:
-    console: "%msg%n"  
+    level: "%5p [${spring.application.name:},%X{trace_id:-},%X{span_id:-}]"

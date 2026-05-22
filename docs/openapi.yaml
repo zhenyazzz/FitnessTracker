@@ -1,0 +1,1161 @@
+openapi: 3.0.3
+info:
+  title: Fitness Tracker API
+  version: 1.0.0
+  description: |
+    REST API для трекинга фитнес-активностей: регистрация и JWT-аутентификация,
+    тренировки с упражнениями, медиа-файлы (MinIO), аналитика.
+
+    **Авторизация:** все endpoints, кроме `/auth/**`, Swagger и Actuator,
+    требуют заголовок `Authorization: Bearer <accessToken>`.
+    Access token получается через `/auth/register` или `/auth/login`.
+
+    **Интерактивная документация:** при запущенном приложении — http://localhost:8080/swagger-ui.html
+    (генерируется springdoc из тех же аннотаций, что и этот файл).
+
+servers:
+  - url: http://localhost:8080
+    description: Localhost
+
+tags:
+  - name: Authentication
+    description: API для аутентификации и авторизации пользователей
+  - name: Workouts
+    description: API для работы с тренировками
+  - name: Media
+    description: API для работы с медиа-данными
+  - name: Analytics
+    description: API для аналитики тренировок
+
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Регистрация нового пользователя
+      description: Создает нового пользователя с ролью USER и возвращает JWT токены (access и refresh).
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              email: user@example.com
+              password: password123
+              username: john_doe
+      responses:
+        "200":
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          description: Пользователь с таким email уже существует
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: "Email already exists: user@example.com"
+                status: 409
+                timestamp: "2025-11-17T18:00:00"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Вход в систему
+      description: Аутентификация по email и паролю, возвращает JWT токены.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: user@example.com
+              password: password123
+      responses:
+        "200":
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: Invalid password
+                status: 401
+                timestamp: "2025-11-17T18:00:00"
+        "404":
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Обновление токена доступа
+      description: Обновляет access token и refresh token по текущему refresh token.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        "200":
+          description: Токены успешно обновлены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Refresh token истек или недействителен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Refresh token не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Выход из системы
+      description: Удаляет refresh token, завершая сессию пользователя.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        "204":
+          description: Выход выполнен успешно
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Refresh token истек или недействителен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Refresh token не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts:
+    get:
+      tags: [Workouts]
+      summary: Получение списка всех тренировок
+      description: |
+        Список тренировок текущего пользователя с фильтрацией и пагинацией.
+        По умолчанию сортировка `date,desc`. Все поля фильтра опциональны.
+      operationId: getAllWorkouts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sortWorkouts"
+      requestBody:
+        required: false
+        description: Фильтры (опционально). Передаются в теле GET-запроса.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkoutFilterDto"
+            example:
+              type: STRENGTH
+              dateFilter:
+                dateFrom: "2024-12-01"
+                dateTo: "2024-12-31"
+              durationFilter:
+                durationFrom: 30
+                durationTo: 90
+              caloriesFilter:
+                caloriesFrom: 200
+                caloriesTo: 500
+      responses:
+        "200":
+          description: Список тренировок успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageWorkoutResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [Workouts]
+      summary: Создание новой тренировки
+      description: Создает новую тренировку с опциональным списком упражнений.
+      operationId: createWorkout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkoutRequest"
+            example:
+              name: Тренировка 1
+              type: STRENGTH
+              date: "2025-01-01"
+              duration: 30
+              calories: 100
+              exercises:
+                - exerciseId: 1
+                  sets: 4
+                  reps: 12
+                  weight: 80.0
+                  distance: null
+                  time: null
+      responses:
+        "201":
+          description: Тренировка успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Упражнение или пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}:
+    get:
+      tags: [Workouts]
+      summary: Получение тренировки по ID
+      operationId: getWorkoutById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workoutId"
+      responses:
+        "200":
+          description: Тренировка успешно получена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Тренировка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      tags: [Workouts]
+      summary: Обновление тренировки по ID
+      description: Обновляет основные поля тренировки. Упражнения через этот метод не меняются.
+      operationId: updateWorkout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workoutId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWorkoutRequest"
+            example:
+              name: Обновленная тренировка
+              type: STRENGTH
+              date: "2024-12-15"
+              duration: 75
+              calories: 450
+      responses:
+        "200":
+          description: Тренировка успешно обновлена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ForbiddenOwnWorkouts"
+        "404":
+          description: Тренировка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [Workouts]
+      summary: Удаление тренировки по ID
+      operationId: deleteWorkout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workoutId"
+      responses:
+        "204":
+          description: Тренировка успешно удалена
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ForbiddenOwnWorkouts"
+        "404":
+          description: Тренировка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}/exercises:
+    post:
+      tags: [Workouts]
+      summary: Добавление упражнения в тренировку
+      description: Добавляет упражнение в существующую тренировку. Упражнение должно быть в справочнике.
+      operationId: addExerciseToWorkout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workoutId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkoutExerciseRequest"
+            example:
+              exerciseId: 1
+              sets: 4
+              reps: 12
+              weight: 80.0
+              distance: null
+              time: null
+      responses:
+        "200":
+          description: Упражнение успешно добавлено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkoutResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Можно изменять только свои тренировки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: You can only modify your own workouts
+                status: 403
+        "404":
+          description: Тренировка или упражнение не найдены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}/exercises/{exerciseId}:
+    delete:
+      tags: [Workouts]
+      summary: Удаление упражнения из тренировки
+      description: |
+        Удаляет запись упражнения в тренировке.
+        `exerciseId` в path — это ID записи workout exercise (workoutExerciseId), не ID из справочника.
+      operationId: removeExerciseFromWorkout
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workoutId"
+        - name: exerciseId
+          in: path
+          required: true
+          description: ID упражнения в тренировке (workoutExerciseId)
+          schema:
+            type: integer
+            format: int64
+          example: 1
+      responses:
+        "204":
+          description: Упражнение успешно удалено из тренировки
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Можно изменять только свои тренировки
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Тренировка или упражнение не найдены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /media:
+    get:
+      tags: [Media]
+      summary: Получение списка всех медиа-данных
+      description: |
+        Список медиа текущего пользователя с фильтром по дате и пагинацией.
+        По умолчанию сортировка `createdAt,desc`.
+      operationId: getAllMedia
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/size"
+        - $ref: "#/components/parameters/sortMedia"
+      requestBody:
+        required: false
+        description: Фильтры (опционально). Передаются в теле GET-запроса.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaFilterDto"
+            example:
+              dateFilter:
+                dateFrom: "2024-12-01"
+                dateTo: "2024-12-31"
+      responses:
+        "200":
+          description: Список медиа успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageMediaResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [Media]
+      summary: Создание нового медиа-данного
+      description: |
+        Загружает файл в MinIO (макс. 10 MB) и сохраняет метаданные.
+        Content-Type: `multipart/form-data`.
+      operationId: createMedia
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                note:
+                  type: string
+                  description: Заметка к файлу (опционально)
+                  example: Фото прогресса
+                file:
+                  type: string
+                  format: binary
+                  description: Файл (обязателен)
+      responses:
+        "201":
+          description: Медиа успешно создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaResponse"
+        "400":
+          description: Ошибка валидации или пустой файл
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Ошибка сервера или загрузки в MinIO
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /media/{id}:
+    get:
+      tags: [Media]
+      summary: Получение медиа-данных по ID
+      description: Возвращает метаданные и presigned URL для доступа к файлу.
+      operationId: getMediaById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID медиа-данных
+          schema:
+            type: integer
+            format: int64
+          example: 1
+      responses:
+        "200":
+          description: Медиа успешно получено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Медиа не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [Media]
+      summary: Удаление медиа-данного по ID
+      description: Удаляет запись и файл из MinIO. Только свои медиа.
+      operationId: deleteMedia
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID медиа для удаления
+          schema:
+            type: integer
+            format: int64
+          example: 1
+      responses:
+        "204":
+          description: Медиа успешно удалено
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Можно удалять только свои медиа
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                message: You can only delete your own media
+                status: 403
+        "404":
+          description: Медиа не найдено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Ошибка удаления из MinIO
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /analytics:
+    get:
+      tags: [Analytics]
+      summary: Получение аналитики тренировок
+      description: |
+        Статистика по тренировкам: количество, вес, калории, длительность,
+        разбивка по типам, рекорды. Период задается в теле запроса через `dateFilter`;
+        если не указан — учитываются все тренировки пользователя.
+      operationId: getAnalytics
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        description: Период анализа (опционально). Передается в теле GET-запроса.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyticsRequest"
+            example:
+              dateFilter:
+                dateFrom: "2024-12-01"
+                dateTo: "2024-12-31"
+      responses:
+        "200":
+          description: Аналитика успешно получена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+              example:
+                totalWorkouts: 10
+                totalWeightLifted: 4500.0
+                totalCaloriesBurned: 3200
+                totalDuration: 600
+                periodStart: "2024-12-01"
+                periodEnd: "2024-12-31"
+                workoutsByType:
+                  STRENGTH: 6
+                  CARDIO: 3
+                  YOGA: 1
+                maxAchievements:
+                  maxWeightByExercise:
+                    Bench Press: 100
+                    Squat: 120
+                  maxDistanceByExercise:
+                    Running: 10
+                  maxTimeByExercise:
+                    Mountain Climbers: 3600
+                  maxCaloriesBurnedInWorkout: 500
+                  maxDurationInWorkout: 90
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token. Получите через POST /auth/register или POST /auth/login.
+        Обновление: POST /auth/refresh.
+
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Номер страницы (с 0)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+    size:
+      name: size
+      in: query
+      description: Размер страницы (по умолчанию 10, максимум 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      example: 10
+    sortWorkouts:
+      name: sort
+      in: query
+      description: |
+        Сортировка Spring Data. По умолчанию `date,desc`.
+        Поля: date, duration, calories, createdAt.
+      schema:
+        type: string
+      example: date,desc
+    sortMedia:
+      name: sort
+      in: query
+      description: "Сортировка. По умолчанию: createdAt,desc"
+      schema:
+        type: string
+      example: createdAt,desc
+    workoutId:
+      name: id
+      in: path
+      required: true
+      description: ID тренировки
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации данных
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: "email: Email must be valid, password: Password must be at least 4 characters"
+            status: 400
+            timestamp: "2025-11-17T18:00:00"
+    Unauthorized:
+      description: Пользователь не аутентифицирован
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: Unauthorized
+            status: 401
+            timestamp: "2025-11-17T18:00:00"
+    ForbiddenOwnWorkouts:
+      description: Доступ запрещен — можно изменять только свои тренировки
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: You can only update your own workouts
+            status: 403
+            timestamp: "2025-11-17T18:00:00"
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            message: Internal server error
+            status: 500
+            timestamp: "2025-11-17T18:00:00"
+
+  schemas:
+    WorkoutType:
+      type: string
+      enum: [CARDIO, STRENGTH, YOGA, CROSSFIT, RUNNING, OTHER]
+      description: Тип тренировки
+
+    MuscleGroup:
+      type: string
+      enum: [CHEST, BACK, LEGS, SHOULDERS, ARMS, CORE, FULL_BODY]
+      description: Группа мышц упражнения
+
+    RegisterRequest:
+      type: object
+      required: [email, password, username]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 4
+        username:
+          type: string
+          maxLength: 50
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 4
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        status:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    DateFilterDto:
+      type: object
+      properties:
+        dateFrom:
+          type: string
+          format: date
+          description: Начало периода (не в будущем)
+        dateTo:
+          type: string
+          format: date
+          description: Конец периода (не в будущем, dateFrom <= dateTo)
+
+    DurationFilterDto:
+      type: object
+      properties:
+        durationFrom:
+          type: integer
+          minimum: 0
+          description: Минимальная длительность (мин), durationFrom <= durationTo
+        durationTo:
+          type: integer
+          minimum: 0
+
+    CaloriesFilterDto:
+      type: object
+      properties:
+        caloriesFrom:
+          type: integer
+          minimum: 0
+          description: caloriesFrom <= caloriesTo
+        caloriesTo:
+          type: integer
+          minimum: 0
+
+    WorkoutFilterDto:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/WorkoutType"
+        dateFilter:
+          $ref: "#/components/schemas/DateFilterDto"
+        durationFilter:
+          $ref: "#/components/schemas/DurationFilterDto"
+        caloriesFilter:
+          $ref: "#/components/schemas/CaloriesFilterDto"
+
+    CreateWorkoutExerciseRequest:
+      type: object
+      required: [exerciseId]
+      properties:
+        exerciseId:
+          type: integer
+          format: int64
+        sets:
+          type: integer
+          minimum: 1
+        reps:
+          type: integer
+          minimum: 1
+        weight:
+          type: number
+          format: double
+          minimum: 0
+        distance:
+          type: number
+          format: double
+          minimum: 0
+        time:
+          type: integer
+          minimum: 0
+          description: Время в секундах
+
+    CreateWorkoutRequest:
+      type: object
+      required: [name, type, date, duration]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        type:
+          $ref: "#/components/schemas/WorkoutType"
+        date:
+          type: string
+          format: date
+          description: Дата тренировки (не в будущем)
+        duration:
+          type: integer
+          minimum: 1
+          description: Длительность в минутах
+        calories:
+          type: integer
+          minimum: 1
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateWorkoutExerciseRequest"
+
+    UpdateWorkoutRequest:
+      type: object
+      description: Все поля опциональны
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        type:
+          $ref: "#/components/schemas/WorkoutType"
+        date:
+          type: string
+          format: date
+        duration:
+          type: integer
+          minimum: 1
+        calories:
+          type: integer
+          minimum: 1
+
+    WorkoutExerciseResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID записи упражнения в тренировке
+        exerciseId:
+          type: integer
+          format: int64
+          description: ID из справочника упражнений
+        exerciseName:
+          type: string
+        muscleGroup:
+          $ref: "#/components/schemas/MuscleGroup"
+        sets:
+          type: integer
+        reps:
+          type: integer
+        weight:
+          type: number
+          format: double
+        distance:
+          type: number
+          format: double
+        time:
+          type: integer
+          description: Секунды
+
+    WorkoutResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/WorkoutType"
+        date:
+          type: string
+          format: date
+        duration:
+          type: integer
+          description: Минуты
+        calories:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutExerciseResponse"
+
+    PageWorkoutResponse:
+      type: object
+      description: Страница Spring Data (Page&lt;WorkoutResponse&gt;)
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutResponse"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+          description: Номер текущей страницы
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+        empty:
+          type: boolean
+
+    MediaFilterDto:
+      type: object
+      properties:
+        dateFilter:
+          $ref: "#/components/schemas/DateFilterDto"
+
+    MediaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        presignedUrl:
+          type: string
+          description: Временный URL для скачивания из MinIO
+        note:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        mimeType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PageMediaResponse:
+      type: object
+      description: Страница Spring Data (Page&lt;MediaResponse&gt;)
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaResponse"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        size:
+          type: integer
+        number:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+        empty:
+          type: boolean
+
+    AnalyticsRequest:
+      type: object
+      properties:
+        dateFilter:
+          $ref: "#/components/schemas/DateFilterDto"
+
+    MaxAchievements:
+      type: object
+      properties:
+        maxWeightByExercise:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Макс. вес по названию упражнения
+        maxDistanceByExercise:
+          type: object
+          additionalProperties:
+            type: integer
+        maxTimeByExercise:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Секунды
+        maxCaloriesBurnedInWorkout:
+          type: integer
+        maxDurationInWorkout:
+          type: integer
+          description: Минуты
+
+    AnalyticsResponse:
+      type: object
+      properties:
+        totalWorkouts:
+          type: integer
+          format: int64
+        totalWeightLifted:
+          type: number
+          format: double
+        totalCaloriesBurned:
+          type: integer
+        totalDuration:
+          type: integer
+          description: Суммарная длительность в минутах
+        periodStart:
+          type: string
+          format: date
+        periodEnd:
+          type: string
+          format: date
+        workoutsByType:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Ключ — WorkoutType
+        maxAchievements:
+          $ref: "#/components/schemas/MaxAchievements"
